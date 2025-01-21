@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^4.21.2",
     "npx": "^10.2.2",
     "react": "^19.0.0"

@@ -1,0 +1,41 @@
+{
+    "users": [
+        {
+            "id": 1,
+            "username": "toto",
+            "password": "password123",
+            "email": "toto@example.com",
+            "admin": 0
+        },
+        {
+            "id": 2,
+            "username": "tata",
+            "password": "password456",
+            "email": "tata@example.com",
+            "admin": 0
+        },
+        {
+            "id": 3,
+            "username": "admin",
+            "password": "admin123",
+            "email": "admin@example.com",
+            "admin": 1
+        }
+    ],
+    "activites": [
+        {
+            "idActivite": 1,
+            "libelleActivite": "Randonnée",
+            "description": "Une belle randonnée en montagne.",
+            "lieu": "Montagnes Rocheuses",
+            "date": "2025-01-27"
+        },
+        {
+            "idActivite": 2,
+            "libelleActivite": "Atelier de peinture",
+            "description": "Un atelier pour apprendre à peindre.",
+            "lieu": "Centre culturel",
+            "date": "2025-02-13"
+        }
+    ]
+}
