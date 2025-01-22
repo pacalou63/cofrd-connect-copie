@@ -57,13 +57,50 @@ body {
     border-radius: 50%; 
 }
 
+
+
 .user-container {
-    position: absolute; 
-    background-color: white; 
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); 
-    padding: 10px; 
-    border-radius: 8px; 
-    z-index: 100; 
+    position: absolute;
+    top: 80px;
+    background: white;
+    padding: 15px 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    min-width: 200px;
+    z-index: 1000;
+    animation: slideIn 0.3s ease-out;
+}
+
+.user-container p {
+    color: #333;
+    margin: 8px 0;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.user-container p:first-child {
+    font-weight: bold;
+    color: #2c3e50;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+}
+
+.user-container .logout-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.user-container .logout-option:hover {
+    color: #e74c3c;
 }
 
 .logout {
@@ -105,10 +142,55 @@ body {
     margin-bottom: 20px; 
 }
 
-.activites-table table {
+.activites-header{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    position: relative;
+    padding: 0 20px;
+    margin-bottom: 15px;
+    justify-content: center;
+}
+
+.activites-header h2 {
+    margin: 0;
+}
+
+.activites-title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.groupuser-logo {
+    position: absolute;
+    right: 20px;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.groupuser-logo:hover {
+    transform: scale(1.1);
+}
+
+.groupuser-logo img {
+    width: 40px; 
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.activites-table {
     width: 100%; 
     border-collapse: collapse; 
     margin-bottom: 20px; 
+}
+
+.add-button-container {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 10px;
 }
 
 .activites-table th, .activites-table td {
@@ -190,4 +272,15 @@ body {
 
 .form-buttons button:hover {
     opacity: 0.9;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }

@@ -104,13 +104,13 @@ export const Signup = ({ onSignupSuccess, onLoginClick }) => {
                         <div className='input'>
                             <input type='password' placeholder='Mot de passe' value={password} onChange={(e) => setPassword(e.target.value)} />
                             <span className="bar"></span>
-                            <span className="password-toggle" onClick={() => setShowPassword(!showPassword)}>
+                            <span className="password-toggle" onClick={() => setShowPassword(!showPassword)} style={{ marginLeft: '30px'}}>
                                 {showPassword ? '👁️' : '👁️‍🗨️'}
                             </span>
                         </div>
 
                         <div className='input'> 
-                            <input type={showPassword ? 'text' : 'password'} placeholder='Confirmer le mot de passe' value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+                            <input type={showPassword ? 'text' : 'password'} placeholder='Confirmer mot de passe' value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
                             <span className="bar"></span>
                             <span className="password-toggle" onClick={() => setShowPassword(!showPassword)}>
                                 {showPassword ? '👁️' : '👁️‍🗨️'}

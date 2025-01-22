@@ -24,13 +24,6 @@
     ],
     "activites": [
         {
-            "idActivite": 1,
-            "libelleActivite": "Randonnée",
-            "description": "Une belle randonnée en montagne.",
-            "lieu": "Montagnes Rocheuses",
-            "date": "2025-01-27"
-        },
-        {
             "idActivite": 2,
             "libelleActivite": "Atelier de peinture",
             "description": "Un atelier pour apprendre à peindre.",

@@ -5,16 +5,17 @@ import logoutLogo from '../img/logout.png';
 import deleteIcon from '../img/delete.png';
 import plusIcon from '../img/plus.png';
 import editIcon from '../img/edit.png';
-import { fetchActivites, createActivite, updateActivite as updateActiviteApi, deleteActivite as deleteActiviteApi } from '../services/api';
+import groupuser from '../img/group.png';
+import { fetchActivites, createActivite, updateActivite as updateActiviteApi, deleteActivite as deleteActiviteApi, fetchUsers } from '../services/api';
 import Modal from './modal';
 import { ModalEdit } from './modaledit';
-
-
 
 const Main = ({ user, onLogout }) => {
 
     const [showUserInfo, setShowUserInfo] = useState(false);
+    const [showUsers, setShowUsers] = useState(false);
     const [activites, setActivites] = useState([]);
+    const [users, setUsers] = useState([]);
     const [newActivite, setNewActivite] = useState({
         libelleActivite: '',
         description: '',
@@ -36,8 +37,22 @@ const Main = ({ user, onLogout }) => {
         loadActivites();
     }, []);
 
+    useEffect(() => {
+        const loadUsers = async () => {
+            const data = await fetchUsers();
+            if (data) {
+                setUsers(data);
+            }
+        };
+        loadUsers();
+    }, []);
+
     const toggleUserInfo = () => {
         setShowUserInfo(!showUserInfo);
+    }
+
+    const toggleUsers = () => {
+        setShowUsers(!showUsers);
     }
 
     const handleAddActivite = async (e) => {
@@ -109,61 +124,88 @@ const Main = ({ user, onLogout }) => {
 
                 <div className='content'>
                     <div className='activites-container'>
-                        <div className='activites-title'>
-                            <h2>Liste des Activités</h2>
+                        <div className='activites-header'>
+                            <div className='activites-title'>
+                                <h2>Liste des Activités</h2>
+                            </div>
+                            <div className='groupuser-logo' onClick={toggleUsers}>
+                                <img src={groupuser} alt='groupuser'/>
+                            </div>
                         </div>
-                        <div className='activites-table'>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Libellé</th>
-                                        <th>Description</th>
-                                        <th>Lieu</th>
-                                        <th>Date</th>
-                                        {user.admin === 1 && <th>Actions</th>}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {activites.map((activite) => (
-                                        <tr key={activite.idActivite}>
-                                            <td>{activite.idActivite}</td>
-                                            <td>{activite.libelleActivite}</td>
-                                            <td>{activite.description}</td>
-                                            <td>{activite.lieu}</td>
-                                            <td>{activite.date}</td>
-                                            {user.admin === 1 && ( 
-                                                <td>
-                                                    <img 
-                                                        src={editIcon} 
-                                                        alt="Edit" 
-                                                        onClick={() => handleEditActivite(activite.idActivite)} 
-                                                        style={{ cursor: 'pointer', width: '20px', height: '20px', marginRight: '10px' }} 
-                                                    />
-                                                    <img 
-                                                        src={deleteIcon} 
-                                                        alt="Delete" 
-                                                        onClick={() => handleDeleteActivite(activite.idActivite)} 
-                                                        style={{ cursor: 'pointer', width: '20px', height: '20px' }} 
-                                                    />
-                                                </td>
-                                            )}
+                        {!showUsers ? (
+                            <div className='activites-table'>
+                                
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Libellé</th>
+                                            <th>Description</th>
+                                            <th>Lieu</th>
+                                            <th>Date</th>
+                                            {user.admin === 1 && <th>Actions</th>}
                                         </tr>
-
-                                        
-                                    ))}
-                                </tbody>
-
+                                    </thead>
+                                    <tbody>
+                                        {activites.map((activite) => (
+                                            <tr key={activite.idActivite}>
+                                                <td>{activite.libelleActivite}</td>
+                                                <td>{activite.description}</td>
+                                                <td>{activite.lieu}</td>
+                                                <td>{activite.date}</td>
+                                                {user.admin === 1 && ( 
+                                                    <td>
+                                                        <img 
+                                                            src={editIcon} 
+                                                            alt="Edit" 
+                                                            onClick={() => handleEditActivite(activite.idActivite)} 
+                                                            style={{ cursor: 'pointer', width: '20px', height: '20px', marginRight: '10px' }} 
+                                                        />
+                                                        <img 
+                                                            src={deleteIcon} 
+                                                            alt="Delete" 
+                                                            onClick={() => handleDeleteActivite(activite.idActivite)} 
+                                                            style={{ cursor: 'pointer', width: '20px', height: '20px' }} 
+                                                        />
+                                                    </td>
+                                                )}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                                 {user.admin === 1 && ( 
-                                    <img 
-                                    src={plusIcon} 
-                                    alt="Add" 
-                                    onClick={() => setShowAddForm(true)} 
-                                    style={{ cursor: 'pointer', width: '20px', height: '20px', marginRight: '10px', marginTop: '10px' }} 
-                                    /> 
+                                    <div className="add-button-container">
+                                        <img 
+                                            src={plusIcon} 
+                                            alt="Add" 
+                                            onClick={() => setShowAddForm(true)} 
+                                            style={{ cursor: 'pointer', width: '20px', height: '20px', marginRight: '10px', marginTop: '10px' }} 
+                                        />
+                                    </div>
                                 )}
-                            </table>
-                        </div>
+                            </div>
+                        ) : (
+                            
+                            <div className='users-table'>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>Nom d'utilisateur</th>
+                                            <th>Email</th>
+                                            <th>Rôle</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {users.map((user) => (
+                                            <tr key={user.id}>
+                                                <td>{user.username}</td>
+                                                <td>{user.email}</td>
+                                                <td>{user.admin === 1 ? 'Administrateur' : 'Utilisateur'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
                     </div>
                 </div>
                 {showAddForm && (
