@@ -103,6 +103,15 @@
     user-select: none;
 }
 
+.password2-toggle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    user-select: none;
+}
+
 
 .input input.invalid {
     border-bottom: 2px solid #ff0000;

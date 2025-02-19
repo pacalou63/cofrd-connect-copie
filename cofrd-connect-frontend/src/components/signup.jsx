@@ -60,8 +60,7 @@ export const Signup = ({ onSignupSuccess, onLoginClick }) => {
     const handleEmailChange = (e) => {
         const newEmail = e.target.value;
         setEmail(newEmail);
-        
-        // Effacer le message d'erreur si l'email est valide
+  
         if (isValidEmail(newEmail) || newEmail === '') {
             setError('');
         }
@@ -102,7 +101,7 @@ export const Signup = ({ onSignupSuccess, onLoginClick }) => {
                         </div>
 
                         <div className='input'>
-                            <input type='password' placeholder='Mot de passe' value={password} onChange={(e) => setPassword(e.target.value)} />
+                            <input type={showPassword ? 'text' : 'password'} placeholder='Mot de passe' value={password} onChange={(e) => setPassword(e.target.value)} />
                             <span className="bar"></span>
                             <span className="password-toggle" onClick={() => setShowPassword(!showPassword)} style={{ marginLeft: '30px'}}>
                                 {showPassword ? '👁️' : '👁️‍🗨️'}
@@ -112,7 +111,7 @@ export const Signup = ({ onSignupSuccess, onLoginClick }) => {
                         <div className='input'> 
                             <input type={showPassword ? 'text' : 'password'} placeholder='Confirmer mot de passe' value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
                             <span className="bar"></span>
-                            <span className="password-toggle" onClick={() => setShowPassword(!showPassword)}>
+                            <span className="password2-toggle" onClick={() => setShowPassword(!showPassword)}>
                                 {showPassword ? '👁️' : '👁️‍🗨️'}
                             </span>
                         </div>
