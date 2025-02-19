@@ -1,0 +1,10 @@
+* {
+    box-sizing: border-box; 
+    font-family: "Nunito Sans", serif;
+    font-optical-sizing: auto;
+}
+
+.container{
+    display: flex;
+    height: 100vh;
+}

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react'
 import './login.css'
 import {users} from '../mockData.js';
@@ -28,6 +29,16 @@ export const Login = ({ onLoginSuccess, onSignupClick }) => {
         }
     };
 
+    const handleLogin = (user) => {
+        const userToStore = {
+            username: user.username,
+            email: user.email,
+            admin: user.admin,
+           
+        };
+        localStorage.setItem('currentUser', JSON.stringify(userToStore));
+    }
+
   return (
     <div className='main'>
         <div className='container'>          
@@ -48,9 +59,9 @@ export const Login = ({ onLoginSuccess, onSignupClick }) => {
                             <span className="password-toggle" onClick={() => setShowPassword(!showPassword)} >
                                 {showPassword ? '👁️' : '👁️‍🗨️'}
                             </span>   
-                        </div>
+                        </div>                                                                                                                          
                         <div className='button'>
-                            <button type='submit'>Se connecter</button>
+                            <button type='submit' onClick={handleLogin}>Se connecter</button>
                         </div>
                         <div className='button signup-button'>
                             <button type='button' onClick={handleSignupClick}>S'inscrire</button>

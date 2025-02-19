@@ -1,18 +1,26 @@
 import { activites as mockActivites } from '../mockData';
 
-// Mock data pour les utilisateurs
 const mockUsers = [
     { id: 1, username: 'admin', email: 'admin@example.com', admin: 1 },
     { id: 2, username: 'user1', email: 'user1@example.com', admin: 0 },
     { id: 3, username: 'user2', email: 'user2@example.com', admin: 0 },
 ];
 
+const API_URL = 'http://localhost:3001/api';
+
 let activites = [...mockActivites];
 let users = [...mockUsers];
 
 export const fetchActivites = async () => {
     try {
-        return activites;
+        const response = await fetch(`${API_URL}/activites`);
+        if (!response.ok) {
+            throw new Error('Erreur lors de la récupération des activités');
+        }
+        const data = await response.json();
+        console.log('Data:', data);
+        activites = data.activites;
+        return data;
     } catch (error) {
         console.error('Erreur lors de la récupération des activités:', error);
         return null;
@@ -21,8 +29,21 @@ export const fetchActivites = async () => {
 
 export const createActivite = async (activite) => {
     try {
-        activites = [...activites, activite];
-        return activite;
+        const response = await fetch(`${API_URL}/activites`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(activite)
+        });
+
+        if (!response.ok) {
+            throw new Error('Erreur lors de la création de l\'activité');
+        }
+
+        const newActivite = await response.json();
+        activites = [...activites, newActivite];
+        return newActivite;
     } catch (error) {
         console.error('Erreur lors de la création de l\'activité:', error);
         return null;
@@ -31,29 +52,60 @@ export const createActivite = async (activite) => {
 
 export const updateActivite = async (activite) => {
     try {
-        const index = activites.findIndex(a => a.idActivite === activite.idActivite);
-        if (index !== -1) {
-            activites[index] = activite;
-            return activite;
+        console.log("Données reçues dans updateActivite:", activite);
+        // Essayer d'abord l'API
+        try {
+            const response = await fetch(`${API_URL}/activites/${activite.idActivite}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(activite)
+            });
+
+            if (!response.ok) {
+                throw new Error('API non disponible');
+            }
+
+            const updatedActivite = await response.json();
+            return updatedActivite;
+        } catch (apiError) {
+            console.log('API non disponible, utilisation des données mockées');
+            
+            // Mise à jour locale des activités mockées
+            const index = activites.findIndex(a => a.idActivite === activite.idActivite);
+            if (index !== -1) {
+                const updatedActivite = {
+                    ...activites[index],
+                    ...activite
+                };
+                console.log("Activité mise à jour:", updatedActivite);
+                activites[index] = updatedActivite;
+                return updatedActivite; // Important : retourner l'activité mise à jour
+            }
+            throw new Error('Activité non trouvée');
         }
-        throw new Error('Activité non trouvée');
     } catch (error) {
-        console.error('Erreur lors de la mise à jour de l\'activité:', error);
+        console.error('Erreur dans updateActivite:', error);
         return null;
     }
 };
 
 export const deleteActivite = async (id) => {
     try {
-        const index = activites.findIndex(a => a.idActivite === id);
-        if (index !== -1) {
-            activites = activites.filter(a => a.idActivite !== id);
-            return { success: true };
+        const response = await fetch(`${API_URL}/activites/${id}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            throw new Error('Erreur lors de la suppression de l\'activité');
         }
-        throw new Error('Activité non trouvée');
+
+        activites = activites.filter(a => a.idActivite !== id);
+        return { success: true };
     } catch (error) {
         console.error('Erreur lors de la suppression de l\'activité:', error);
-        return null;
+        return { success: false, error: error.message };
     }
 };
 
@@ -63,5 +115,22 @@ export const fetchUsers = async () => {
     } catch (error) {
         console.error('Erreur lors de la récupération des utilisateurs:', error);
         return null;
+    }
+};
+
+export const deleteUser = async (id) => {
+    try {
+        const response = await fetch(`${API_URL}/users/${id}`, {
+            method: 'DELETE',
+        });
+
+        if (!response.ok) {
+            throw new Error('Erreur lors de la suppression de l\'utilisateur');
+        }
+        users = users.filter(u => u.id !== id);
+        return { success: true };
+    } catch (error) {
+        console.error('Erreur lors de la suppression de l\'utilisateur:', error);
+        return { success: false };
     }
 };
