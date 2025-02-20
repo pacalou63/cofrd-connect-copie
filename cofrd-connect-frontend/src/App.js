@@ -5,6 +5,7 @@ import Main from './components/main';
 import Signup from './components/signup';
 import Dashboard from './components/dashboard';
 import UsersView from './components/usersView';
+import Messagerie from './components/messagerie';
 
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
   const [showDashboard, setShowDashboard] = useState(false);
   const [showMain, setShowMain] = useState(false);
   const [showUsersView, setShowUsersView] = useState(false);
+  const [showMessagerie, setShowMessagerie] = useState(false);
   
   useEffect(() => {
       const storedUser = JSON.parse(localStorage.getItem('currentUser'));
@@ -32,9 +34,14 @@ function App() {
   };
 
   const handleLogout = () => {
+    console.log("Déconnexion en cours...");
+    localStorage.removeItem('currentUser');
     setIsLoggedIn(false);
     setCurrentUser(null);
-    localStorage.removeItem('currentUser');
+    setShowDashboard(false);
+    setShowMain(false);
+    setShowUsersView(false);
+    console.log("Utilisateur déconnecté.");
   };
 
   const handleSignupSuccess = (newUser) => {
@@ -56,35 +63,47 @@ function App() {
     setShowUsersView(true);
   };
 
+  const handleMessagerie = () => {
+    setShowMessagerie(true);
+    setShowMain(false);
+    setShowDashboard(false);
+    setShowUsersView(false);
+  };
+
   return (
 
       <div>
         {isLoggedIn ? (
-          <Main 
-            user={currentUser}
-            onLogout={handleLogout}
-            onClickDashboard={handleDashboard}
-            onClickUsersView={handleUsersView}
-          />
+          showMessagerie ? (
+            <Messagerie
+              user={currentUser}
+              onLogout={handleLogout}
+            />
+          ) : showDashboard ? (
+            <Dashboard
+              user={currentUser}
+              onLogout={handleLogout}
+            />
+          ) : showMain ? (
+            <Main           
+              user={currentUser}
+              onLogout={handleLogout}
+            />
+          ) : showUsersView ? (
+            <UsersView           
+              user={currentUser}
+              onLogout={handleLogout}
+            />
+          ) : (
+            <Main 
+              user={currentUser}
+              onLogout={handleLogout}
+            />
+          )
         ) : showSignup ? (
           <Signup 
             onSignupSuccess={handleSignupSuccess} 
             onLoginClick={() => setShowSignup(false)} 
-          />
-        ) : showDashboard ? (
-          <Dashboard
-            user={currentUser}
-            onClickMain={handleMain}
-            onClickUsersView={handleUsersView}
-            
-          />
-        ) : showMain ? (
-          <Main           
-            user={currentUser}
-          />
-        ) : showUsersView ?(
-          <UsersView           
-            user={currentUser}
           />
         ) : (
           <Login 

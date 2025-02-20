@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react'
 import './login.css'
 import {users} from '../mockData.js';
@@ -17,6 +16,7 @@ export const Login = ({ onLoginSuccess, onSignupClick }) => {
         );
 
         if (user) {
+            handleLogin(user);
             onLoginSuccess(user);
         } else {
             setError('Email ou mot de passe incorrect');

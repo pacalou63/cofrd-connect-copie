@@ -8,6 +8,7 @@ import editIcon from '../img/edit.png';
 import groupuser from '../img/group.png';
 import userLogo from '../img/people.png';
 import dashboardLogo from '../img/dashboard.png';
+import cofrdLogo from '../img/cofrd-logo.webp'; 
 import petitPoints from '../img/more.png';
 import userGrpLogo from '../img/group.png';
 import logoutLogo from '../img/logout.png';
@@ -15,12 +16,15 @@ import { fetchActivites, createActivite, updateActivite as updateActiviteApi, de
 import Modal from './modal';
 import { ModalEdit } from './modaledit';
 import Dashboard from './dashboard'; 
+import UsersView from './usersView';
+import messageIcon from '../img/message.png';
+import Messagerie from './messagerie';
 
 
-const Main = ({ user,onClickDashboard }) => {
+const Main = ({ user, onClickDashboard, onLogout }) => {
 
     const [showUserInfo, setShowUserInfo] = useState(false);
-    const [showUsers, setShowUsers] = useState(false);
+    const [showUsersView, setshowUsersView] = useState(false);
     const [activites, setActivites] = useState([]);
     const [users, setUsers] = useState([]);
     const [showDashboard, setShowDashboard] = useState(false); 
@@ -37,7 +41,7 @@ const Main = ({ user,onClickDashboard }) => {
         admin: ''
     });
     const [lieuFilter, setLieuFilter] = useState('');
-
+    const [showMessagerie, setShowMessagerie] = useState(false);
     const [showAddForm, setShowAddForm] = useState(false);
     const [showEditForm, setShowEditForm] = useState(false);
     const [editingActivite, setEditingActivite] = useState(null);
@@ -67,12 +71,16 @@ const Main = ({ user,onClickDashboard }) => {
         setShowUserInfo(!showUserInfo);
     }
 
-    const toggleUsers = () => {
-        setShowUsers(!showUsers);
+    const toggleUsersView = () => {
+        setshowUsersView(!showUsersView);
     }
 
     const toggleDashboard = () => {
         setShowDashboard(!showDashboard);
+    }
+
+    const toggleMessagerie = () => {
+        setShowMessagerie(!showMessagerie);
     }
 
     const updateLocalStorageActivites = (activites) => {
@@ -176,9 +184,24 @@ const Main = ({ user,onClickDashboard }) => {
     console.log('Activités:', activites); 
 
     
-    const filteredActivites = activites.filter(activite => 
-        activite.lieu.toLowerCase().includes(lieuFilter.toLowerCase())
-    );
+    const filteredActivites = activites.filter(activite => {
+        if (!activite || !activite.lieu) return false;
+        return lieuFilter === '' || activite.lieu.toLowerCase().includes(lieuFilter.toLowerCase());
+    });
+
+    const handleFilter = (e) => {
+        const value = e.target.value || '';
+        setLieuFilter(value);
+    };
+
+    const handleLogout = () => {
+        console.log("Tentative de déconnexion");
+        localStorage.removeItem('currentUser');
+        if (onLogout) {
+            onLogout();
+        }
+        window.location.reload();
+    };
 
     if (!user) {
         return <div>Utilisateur non connecté</div>; 
@@ -186,33 +209,50 @@ const Main = ({ user,onClickDashboard }) => {
 
     return (
         <div>
-            {showDashboard ? (
-                <Dashboard user={user}  onClickDashboard={onClickDashboard}/>
+            {showMessagerie ? (
+                <Messagerie user={user}/>
+            ) : showDashboard ? (
+                <Dashboard user={user} onClickDashboard={onClickDashboard}/>
+            ) : showUsersView ? (
+                <UsersView user={user}/>
             ) : (
                 <div className='main'>
                     <div className='container'>
                         <div className='header'>
-                            <div className='navbar'>                                   
+                            <div className='navbar'>
+                                <div className='cofrd'>
+                                    <div className='cofrd-logo'>
+                                        <img src={cofrdLogo} alt="cofrd"/>
+                                        <h2 className='cofrd-logo-text'>Connect</h2>
+                                    </div>
+                                </div>                                   
                                 <div className='activite-paging'> 
-                                    <div className='activite-logo' onClick={toggleUsers}>
+                                    <div className='activite-logo'>
                                         <img src={activiteLogo} alt="activite-paging" />
-                                        <h2 className='activite-logo-text'>Événements</h2>
+                                        <h2 className='activite-logo-text active'>Événements</h2>
                                     </div>
                                 </div>
                                 <div className='dashboard-paging'> 
-                                    <div className='dashboard-logo'onClick={toggleDashboard} >
+                                    <div className='dashboard-logo' onClick={toggleDashboard}>
                                         <img src={dashboardLogo} alt="dashboard-paging" />
                                         <h2 className='dashboard-logo-text'>Tableau de bord</h2>
                                     </div>
                                 </div>
-                                <div className='users-paging'> 
-                                    <div className='users-logo' >
-                                        <img src={userGrpLogo} alt="users-paging" />
-                                        <h2 className='users-logo-text'>Utilisateurs</h2>
+                                {user.admin === 1 && (
+                                    <div className='users-paging'> 
+                                        <div className='users-logo' onClick={toggleUsersView}>
+                                            <img src={userGrpLogo} alt="users-paging" />
+                                            <h2 className='users-logo-text'>Utilisateurs</h2>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className='messagerie-paging'>
+                                    <div className='messagerie-logo' onClick={toggleMessagerie}>
+                                        <img src={messageIcon} alt="messagerie-paging" />
+                                        <h2 className='messagerie-logo-text'>Messagerie</h2>
                                     </div>
                                 </div>
                                 <div className='user'>
-                                    <div className='line'></div>
                                     <div className='user-logo'>
                                         <img src={userLogo} alt="User" />
                                     </div>
@@ -226,8 +266,9 @@ const Main = ({ user,onClickDashboard }) => {
                                     </div>
                                     {showUserInfo && (
                                         <div className='user-container'>
-                                            <div className='logout'>
-                                                <img src={logoutLogo} alt='logout' />
+                                            <div className='logout-main' onClick={handleLogout}>
+                                                <img src={logoutLogo} alt='logout'/>
+                                                <h2 className='logout-logo-text'>Se déconnecter</h2>
                                             </div>
                                         </div>
                                     )}
@@ -242,11 +283,13 @@ const Main = ({ user,onClickDashboard }) => {
                                     <div className='activites-title'>
                                         <h2>Liste des Spectacles</h2>
                                     </div>
-                                    <div className='groupuser-logo' onClick={toggleUsers}>
-                                        <img src={groupuser} alt='groupuser'/>
-                                    </div>
+                                    {user.admin === 1 && (
+                                        <div className='groupuser-logo' onClick={toggleUsersView}>
+                                            <img src={groupuser} alt='groupuser'/>
+                                        </div>
+                                    )}
                                 </div>
-                                {!showUsers ? (
+                                {!showUsersView ? (
                                     <div className='activites-table'>
                                         
                                         <table>
@@ -261,7 +304,7 @@ const Main = ({ user,onClickDashboard }) => {
                                                                 type="text"
                                                                 placeholder="Filtrer par lieu..."
                                                                 value={lieuFilter}
-                                                                onChange={(e) => setLieuFilter(e.target.value)}
+                                                                onChange={handleFilter}
                                                                 style={{
                                                                     width: '100%',
                                                                     padding: '5px',

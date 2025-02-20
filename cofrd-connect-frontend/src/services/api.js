@@ -111,10 +111,18 @@ export const deleteActivite = async (id) => {
 
 export const fetchUsers = async () => {
     try {
-        return users;
+        const response = await fetch(`${API_URL}/users`);
+        if (!response.ok) {
+            // Si l'API n'est pas disponible, utiliser les données mockées
+            console.log('API non disponible, utilisation des données mockées');
+            return mockUsers;
+        }
+        const data = await response.json();
+        return data;
     } catch (error) {
         console.error('Erreur lors de la récupération des utilisateurs:', error);
-        return null;
+        // En cas d'erreur, retourner les données mockées
+        return mockUsers;
     }
 };
 
@@ -132,5 +140,23 @@ export const deleteUser = async (id) => {
     } catch (error) {
         console.error('Erreur lors de la suppression de l\'utilisateur:', error);
         return { success: false };
+    }
+};
+
+export const saveMessages = (conversations) => {
+    try {
+        localStorage.setItem('chatMessages', JSON.stringify(conversations));
+    } catch (error) {
+        console.error('Erreur lors de la sauvegarde des messages:', error);
+    }
+};
+
+export const loadMessages = () => {
+    try {
+        const savedMessages = localStorage.getItem('chatMessages');
+        return savedMessages ? JSON.parse(savedMessages) : [];
+    } catch (error) {
+        console.error('Erreur lors du chargement des messages:', error);
+        return [];
     }
 };

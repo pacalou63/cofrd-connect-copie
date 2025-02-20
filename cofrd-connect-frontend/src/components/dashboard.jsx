@@ -5,7 +5,7 @@ import Main from './main';
 import userLogo from '../img/people.png';
 import userGrpLogo from '../img/group.png';
 import logoutLogo from '../img/logout.png';
-import cofrdLogo from '../img/cofrd-logo.png'; 
+import cofrdLogo from '../img/cofrd-logo.webp'; 
 import petitPoints from '../img/more.png';
 import dashboard from '../img/dashboard.png'; 
 import { Line, Pie } from 'react-chartjs-2';
@@ -22,6 +22,8 @@ import {
 } from 'chart.js';
 import { fetchActivites } from '../services/api';
 import UsersView from './usersView';
+import messageIcon from '../img/message.png';
+import Messagerie from './messagerie';
 
 const Dashboard = ({ user, onLogout }) => {
     const [showMain, setShowMain] = useState(false);
@@ -39,6 +41,7 @@ const Dashboard = ({ user, onLogout }) => {
     });
     const [prochainActivites, setProchainActivites] = useState([]);
     const [navbarOpen, setNavbarOpen] = useState(false);
+    const [showMessagerie, setShowMessagerie] = useState(false);
 
     ChartJS.register(
         LineElement, 
@@ -63,8 +66,18 @@ const Dashboard = ({ user, onLogout }) => {
         setShowUsersView(!showUsersView);
     };
 
-    const toggleNavbar = () => {
-        setNavbarOpen(!navbarOpen);
+    const toggleMessagerie = () => {
+        setShowMessagerie(!showMessagerie);
+    }
+
+    const handleLogout = () => {
+        console.log("Tentative de déconnexion");
+        localStorage.removeItem('currentUser');
+        if (onLogout) {
+            onLogout();
+        }
+        // Forcer le rechargement de la page
+        window.location.reload();
     };
 
     useEffect(() => {
@@ -80,20 +93,22 @@ const Dashboard = ({ user, onLogout }) => {
 
                 setActivites(sortedActivites);
                 
+                // Ajout de vérifications pour éviter les undefined
                 const formattedData = {
-                    labels: sortedActivites.map(activite => activite.libelleActivite),
+                    labels: sortedActivites.map(activite => activite?.libelleActivite || ''),
                     datasets: [
                         {
                             label: 'Activités par date',
                             data: sortedActivites.map(activite => {
+                                if (!activite || !activite.date) return null;
                                 const date = new Date(activite.date);
                                 
                                 return {
-                                    x: activite.libelleActivite,
+                                    x: activite.libelleActivite || '',
                                     y: date.getMonth() + (date.getDate() / 31), 
                                     date: activite.date
                                 };
-                            }),
+                            }).filter(Boolean), // Filtrer les valeurs null
                             fill: false,
                             borderColor: '#3498db',
                             backgroundColor: '#3498db',
@@ -105,58 +120,40 @@ const Dashboard = ({ user, onLogout }) => {
                 };
                 setChartData(formattedData);
 
-                // Définir les villes spécifiques et leurs couleurs
-                const villesSpecifiques = {
-                    'Oshawa': '#FF6384',
-                    'Toronto': '#36A2EB',
-                    'Bowmanville': '#FFCE56',
-                    'Whitby': '#4BC0C0',
-                    'Scarborough': '#9966FF'
-                };
+                // Prochaines activités
+                const today = new Date();
+                const prochains = sortedActivites
+                    .filter(activite => {
+                        if (!activite || !activite.date) return false;
+                        const activiteDate = new Date(activite.date);
+                        return activiteDate >= today;
+                    })
+                    .slice(0, 5);
+                setProchainActivites(prochains);
 
-                // Compter les activités par ville
-                const villesCount = data.reduce((acc, activite) => {
-                    // Pour chaque ville, vérifier si le lieu de l'activité contient le nom de la ville
-                    Object.keys(villesSpecifiques).forEach(ville => {
-                        if (activite.lieu.includes(ville)) {
-                            acc[ville] = (acc[ville] || 0) + 1;
-                        }
-                    });
+                // Données pour le graphique en camembert
+                const lieuxUniques = sortedActivites.reduce((acc, activite) => {
+                    if (activite && activite.lieu) {
+                        acc[activite.lieu] = (acc[activite.lieu] || 0) + 1;
+                    }
                     return acc;
                 }, {});
 
-                console.log("Comptage des villes:", villesCount);
-
-                // S'assurer que toutes les villes sont présentes
-                Object.keys(villesSpecifiques).forEach(ville => {
-                    if (!villesCount.hasOwnProperty(ville)) {
-                        villesCount[ville] = 0;
-                    }
-                });
-
                 const pieData = {
-                    labels: Object.keys(villesCount),
+                    labels: Object.keys(lieuxUniques),
                     datasets: [{
-                        data: Object.values(villesCount),
-                        backgroundColor: Object.keys(villesCount).map(ville => villesSpecifiques[ville]),
+                        data: Object.values(lieuxUniques),
+                        backgroundColor: [
+                            '#FF6384',
+                            '#36A2EB',
+                            '#FFCE56',
+                            '#4BC0C0',
+                            '#9966FF'
+                        ],
                         borderWidth: 1
                     }]
                 };
-
-                console.log("Données du Pie Chart:", pieData);
                 setPieChartData(pieData);
-
-                // Récupérer les 3 prochaines activités
-                const dateActuelle = new Date();
-                const activitesAVenir = data
-                    .filter(activite => {
-                        const dateActivite = new Date(activite.date);
-                        return dateActivite > dateActuelle;
-                    })
-                    .sort((a, b) => new Date(a.date) - new Date(b.date))
-                    .slice(0, 3);
-
-                setProchainActivites(activitesAVenir);
             }
         };
 
@@ -328,17 +325,27 @@ const Dashboard = ({ user, onLogout }) => {
 
     return (
         <div>
-            {showMain ? (
+            {showMessagerie ? (
+                <Messagerie user={user}/>
+            ) : showMain ? (
                 <Main user={user}/>
-            ) : showUsersView ?(
+            ) : showUsersView ? (
                 <UsersView user={user}/>
             ) : (
                 <div className='main'>
                     <div className='container'>
                         <div className='header'>
-                            <div className='navbarr'>                              
+                            <div className='navbarr'>
+                                <div className='cofrd'>
+                                    <div className='cofrd-logo'>
+                                        <img src={cofrdLogo} alt="cofrd"/>
+                                        <h2 className='cofrd-logo-text'>Connect</h2>
+                                    </div>
+                                    <div className='line'></div>  
+                                </div>  
+                                                          
                                 <div className='user'>
-                                    <div className='line'></div>
+                                    
                                     <div className='user-logo' >
                                         <img src={userLogo} alt="User" />
                                     </div>
@@ -352,33 +359,43 @@ const Dashboard = ({ user, onLogout }) => {
                                     </div>
                                     {showUserInfo && (
                                         <div className='user-container'>
-                                            <div className='logout'>
-                                                <img src={logoutLogo} alt='logout' onClick={onLogout}/>
+                                            <div className='logout-dashboard' onClick={handleLogout}>
+                                                <img src={logoutLogo} alt='logout'/>
                                                 <h2 className='logout-logo-text'>Se déconnecter</h2>
                                             </div>
                                         </div>
                                     )}
                                 </div>
                                 
-
-                                <div className='activite-paging'> 
-                                    <div className='activite-logo' onClick={toggleMain}>
-                                        <img src={activiteLogo} alt="activite-paging" />
-                                        <h2 className='activite-logo-text'>Évenements</h2>
+                                <div className='paging'>
+                                    <div className='activite-paging'> 
+                                        <div className='activite-logo' onClick={toggleMain}>
+                                            <img src={activiteLogo} alt="activite-paging" />
+                                            <h2 className='activite-logo-text'>Événements</h2>
+                                        </div>
+                                    </div>
+                                    <div className='dashboard-paging'> 
+                                        <div className='dashboard-logo'>
+                                            <img src={dashboard} alt="dashboard-paging" />
+                                            <h2 className='dashboard-logo-text active'>Tableau de bord</h2>
+                                        </div>
+                                    </div>
+                                    {user.admin === 1 && (
+                                        <div className='users-paging'> 
+                                            <div className='users-logo' onClick={toggleUsersView}>
+                                                <img src={userGrpLogo} alt="users-paging" />
+                                                <h2 className='users-logo-text'>Utilisateurs</h2>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className='messagerie-paging'> 
+                                        <div className='messagerie-logo' onClick={toggleMessagerie}>
+                                            <img src={messageIcon} alt="messagerie-paging" />
+                                            <h2 className='messagerie-logo-text'>Messagerie</h2>
+                                        </div>
                                     </div>
                                 </div>
-                                <div className='dashboard-paging'> 
-                                    <div className='dashboard-logo' >
-                                        <img src={dashboard} alt="dashboard-paging" />
-                                        <h2 className='dashboard-logo-text'>Tableau de bord</h2>
-                                    </div>
-                                </div>
-                                <div className='users-paging'> 
-                                    <div className='users-logo' onClick={toggleUsersView}>
-                                        <img src={userGrpLogo} alt="users-paging" />
-                                        <h2 className='users-logo-text'>Utilisateurs</h2>
-                                    </div>
-                                </div>
+                                
                             </div>                  
                         </div>
                         <div className='contentt'>
