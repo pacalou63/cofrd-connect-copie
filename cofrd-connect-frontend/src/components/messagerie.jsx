@@ -9,6 +9,7 @@ import userGrpLogo from '../img/group.png';
 import logoutLogo from '../img/logout.png';
 import cofrdLogo from '../img/cofrd-logo.webp'; 
 import petitPoints from '../img/more.png';
+import allUsers from '../img/profile.png';
 import dashboard from '../img/dashboard.png';
 import messageIcon from '../img/message.png';
 import { fetchUsers, saveMessages, loadMessages } from '../services/api';
@@ -23,6 +24,7 @@ const Messagerie = ({ user, onLogout }) => {
     const [message, setMessage] = useState('');
     const [users, setUsers] = useState([]);
     const [conversations, setConversations] = useState([]);
+    const [showAllUsers, setShowAllUsers] = useState(false);
     const socketRef = useRef();
     const [unreadMessages, setUnreadMessages] = useState({});  // { userId: count }
     const [totalUnreadMessages, setTotalUnreadMessages] = useState(0);
@@ -242,6 +244,27 @@ const Messagerie = ({ user, onLogout }) => {
         }));
     };
 
+    const toggleAllUsers = () => {
+        setShowAllUsers(!showAllUsers);
+    };
+
+    const startNewConversation = (newUser) => {
+        setSelectedUser(newUser);
+        setShowAllUsers(false);
+        
+        // Vérifier si une conversation existe déjà
+        const existingConv = conversations.find(conv => conv.user.id === newUser.id);
+        if (!existingConv) {
+            // Créer une nouvelle conversation vide
+            const newConversation = {
+                id: `conv-${newUser.id}-${Date.now()}`,
+                user: newUser,
+                messages: []
+            };
+            setConversations([...conversations, newConversation]);
+        }
+    };
+
     return (
         <div>
             {showMain ? (
@@ -279,7 +302,6 @@ const Messagerie = ({ user, onLogout }) => {
                                         <div className='user-container'>
                                             <div className='logout-messagerie' onClick={handleLogout}>
                                                 <img src={logoutLogo} alt='logout'/>
-                                                <h2 className='logout-logo-text'>Se déconnecter</h2>
                                             </div>
                                         </div>
                                     )}
@@ -325,36 +347,68 @@ const Messagerie = ({ user, onLogout }) => {
                             <div className='contacts-list'>
                                 <div className='contacts-header'>
                                     <h2>Conversations</h2>
+                                    <img 
+                                        src={allUsers} 
+                                        style={{ width: '40px', height: '40px', cursor: 'pointer' }} 
+                                        alt="allUsers" 
+                                        onClick={toggleAllUsers}
+                                    />
                                 </div>
                                 <div className='contacts'>
-                                    {users.map(otherUser => {
-                                        const conversation = conversations.find(conv => conv.user.id === otherUser.id);
-                                        const lastMessage = conversation?.messages[conversation.messages.length - 1];
-                                        const unreadCount = unreadMessages[otherUser.id] || 0;
-                                        
-                                        return (
-                                            <div 
-                                                key={otherUser.id} 
-                                                className={`contact-item ${selectedUser?.id === otherUser.id ? 'selected' : ''}`}
-                                                onClick={() => handleConversationClick(otherUser)}
-                                            >
-                                                <div className='contact-avatar'>
-                                                    <img src={userLogo} alt={otherUser.username} />
-                                                    {unreadCount > 0 && (
-                                                        <div className='unread-badge'>{unreadCount}</div>
-                                                    )}
-                                                </div>
-                                                <div className='contact-info'>
-                                                    <h3>{otherUser.username}</h3>
-                                                    <p className='last-message'>
-                                                        {lastMessage ? lastMessage.text.substring(0, 30) + '...' : 'Aucun message'}
-                                                    </p>
-                                                </div>
+                                    {conversations.map(conversation => (
+                                        <div 
+                                            key={conversation.id} 
+                                            className={`contact-item ${selectedUser?.id === conversation.user.id ? 'selected' : ''}`}
+                                            onClick={() => setSelectedUser(conversation.user)}
+                                        >
+                                            <div className='contact-avatar'>
+                                                <img src={userLogo} alt={conversation.user.username} />
+                                                {unreadMessages[conversation.user.id] > 0 && (
+                                                    <span className='unread-badge'>
+                                                        {unreadMessages[conversation.user.id]}
+                                                    </span>
+                                                )}
                                             </div>
-                                        );
-                                    })}
+                                            <div className='contact-info'>
+                                                <h3>{conversation.user.username}</h3>
+                                                {conversation.messages.length > 0 && (
+                                                    <p className='last-message'>
+                                                        {conversation.messages[conversation.messages.length - 1].text.substring(0, 30)}
+                                                        {conversation.messages[conversation.messages.length - 1].text.length > 30 ? '...' : ''}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
+
+                            {showAllUsers && (
+                                <div className='modal-overlay'>
+                                    <div className='users-modal'>
+                                        <div className='modal-header'>
+                                            <h2>Tous les utilisateurs</h2>
+                                            <button onClick={toggleAllUsers} className='close-modal'>×</button>
+                                        </div>
+                                        <div className='modal-content'>
+                                            {users.map(otherUser => (
+                                                <div 
+                                                    key={otherUser.id} 
+                                                    className='contact-item'
+                                                    onClick={() => startNewConversation(otherUser)}
+                                                >
+                                                    <div className='contact-avatar'>
+                                                        <img src={userLogo} alt={otherUser.username} />
+                                                    </div>
+                                                    <div className='contact-info'>
+                                                        <h3>{otherUser.username}</h3>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className='chat-container'>
                                 {selectedUser ? (

@@ -361,7 +361,6 @@ const Dashboard = ({ user, onLogout }) => {
                                         <div className='user-container'>
                                             <div className='logout-dashboard' onClick={handleLogout}>
                                                 <img src={logoutLogo} alt='logout'/>
-                                                <h2 className='logout-logo-text'>Se déconnecter</h2>
                                             </div>
                                         </div>
                                     )}

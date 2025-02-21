@@ -225,33 +225,36 @@ const Main = ({ user, onClickDashboard, onLogout }) => {
                                         <img src={cofrdLogo} alt="cofrd"/>
                                         <h2 className='cofrd-logo-text'>Connect</h2>
                                     </div>
-                                </div>                                   
-                                <div className='activite-paging'> 
-                                    <div className='activite-logo'>
-                                        <img src={activiteLogo} alt="activite-paging" />
-                                        <h2 className='activite-logo-text active'>Événements</h2>
-                                    </div>
-                                </div>
-                                <div className='dashboard-paging'> 
-                                    <div className='dashboard-logo' onClick={toggleDashboard}>
-                                        <img src={dashboardLogo} alt="dashboard-paging" />
-                                        <h2 className='dashboard-logo-text'>Tableau de bord</h2>
-                                    </div>
-                                </div>
-                                {user.admin === 1 && (
-                                    <div className='users-paging'> 
-                                        <div className='users-logo' onClick={toggleUsersView}>
-                                            <img src={userGrpLogo} alt="users-paging" />
-                                            <h2 className='users-logo-text'>Utilisateurs</h2>
+                                </div>   
+                                <div className='paging'>
+                                    <div className='activite-paging'> 
+                                        <div className='activite-logo'>
+                                            <img src={activiteLogo} alt="activite-paging" />
+                                            <h2 className='activite-logo-text active'>Événements</h2>
                                         </div>
                                     </div>
-                                )}
-                                <div className='messagerie-paging'>
-                                    <div className='messagerie-logo' onClick={toggleMessagerie}>
-                                        <img src={messageIcon} alt="messagerie-paging" />
-                                        <h2 className='messagerie-logo-text'>Messagerie</h2>
+                                    <div className='dashboard-paging'> 
+                                        <div className='dashboard-logo' onClick={toggleDashboard}>
+                                            <img src={dashboardLogo} alt="dashboard-paging" />
+                                            <h2 className='dashboard-logo-text'>Tableau de bord</h2>
+                                        </div>
                                     </div>
-                                </div>
+                                    {user.admin === 1 && (
+                                        <div className='users-paging'> 
+                                            <div className='users-logo' onClick={toggleUsersView}>
+                                                <img src={userGrpLogo} alt="users-paging" />
+                                                <h2 className='users-logo-text'>Utilisateurs</h2>
+                                            </div>
+                                        </div>
+                                    )}
+                                    <div className='messagerie-paging'>
+                                        <div className='messagerie-logo' onClick={toggleMessagerie}>
+                                            <img src={messageIcon} alt="messagerie-paging" />
+                                            <h2 className='messagerie-logo-text'>Messagerie</h2>
+                                        </div>
+                                    </div>
+                                </div>                                
+                                
                                 <div className='user'>
                                     <div className='user-logo'>
                                         <img src={userLogo} alt="User" />
@@ -268,7 +271,6 @@ const Main = ({ user, onClickDashboard, onLogout }) => {
                                         <div className='user-container'>
                                             <div className='logout-main' onClick={handleLogout}>
                                                 <img src={logoutLogo} alt='logout'/>
-                                                <h2 className='logout-logo-text'>Se déconnecter</h2>
                                             </div>
                                         </div>
                                     )}

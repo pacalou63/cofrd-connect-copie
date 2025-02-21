@@ -1,9 +1,8 @@
 import React from 'react';
 import { useState } from 'react';
 import './signup.css';
-import {users} from '../mockData';
 
-export const Signup = ({ onSignupSuccess, onLoginClick }) => {
+export const Signup = ({ onSignupSuccess, onBackToLogin }) => {
     const [showPassword, setShowPassword] = useState(false);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -16,17 +15,9 @@ export const Signup = ({ onSignupSuccess, onLoginClick }) => {
         return emailRegex.test(email);
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         
-        
-        const userExists = users.find(user => user.username === username && user.password === password && user.email === email && user.confirmPassword === confirmPassword);
-        
-        if (userExists) {
-            setError('Nom d\'utilisateur déjà utilisé');
-            return;
-        }
-
         if (password !== confirmPassword) {
             setError('Les mots de passe ne correspondent pas');
             return;
@@ -42,19 +33,43 @@ export const Signup = ({ onSignupSuccess, onLoginClick }) => {
             return;
         }
 
+        try {
+            console.log('Tentative d\'inscription...');
+            const response = await fetch('http://localhost:3001/api/users', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    username,
+                    email,
+                    password
+                }),
+            });
 
+            console.log('Status:', response.status);
+            const contentType = response.headers.get('content-type');
+            console.log('Content-Type:', contentType);
 
+            if (!response.ok) {
+                if (contentType && contentType.includes('application/json')) {
+                    const data = await response.json();
+                    throw new Error(data.message || 'Erreur lors de l\'inscription');
+                } else {
+                    const text = await response.text();
+                    console.error('Réponse non-JSON reçue:', text);
+                    throw new Error('Le serveur a retourné une réponse invalide');
+                }
+            }
 
-        const newUser = {
-            id: users.length + 1,
-            username,
-            password,
-            email
-        };
-
-
-        users.push(newUser);
-        onSignupSuccess(newUser);
+            const newUser = await response.json();
+            console.log('Inscription réussie:', newUser);
+            onSignupSuccess(newUser);
+        } catch (error) {
+            console.error('Erreur lors de l\'inscription:', error);
+            setError(error.message || 'Une erreur est survenue lors de l\'inscription');
+        }
     };
     
     const handleEmailChange = (e) => {
@@ -67,8 +82,8 @@ export const Signup = ({ onSignupSuccess, onLoginClick }) => {
     };
 
     const handleLoginClick = () => {
-        if (typeof onLoginClick === 'function') {
-            onLoginClick();
+        if (typeof onBackToLogin === 'function') {
+            onBackToLogin();
         }
     };
 
@@ -94,7 +109,6 @@ export const Signup = ({ onSignupSuccess, onLoginClick }) => {
                                 placeholder='Email'
                                 value={email}
                                 onChange={handleEmailChange} 
-                                required
                                 className={email && !isValidEmail(email) ? 'invalid' : ''}  
                             />
                             <span className="bar"></span>
@@ -103,28 +117,23 @@ export const Signup = ({ onSignupSuccess, onLoginClick }) => {
                         <div className='input'>
                             <input type={showPassword ? 'text' : 'password'} placeholder='Mot de passe' value={password} onChange={(e) => setPassword(e.target.value)} />
                             <span className="bar"></span>
-                            <span className="password-toggle" onClick={() => setShowPassword(!showPassword)} style={{ marginLeft: '30px'}}>
+                            <span className="password-toggle" onClick={() => setShowPassword(!showPassword)}>
                                 {showPassword ? '👁️' : '👁️‍🗨️'}
                             </span>
                         </div>
 
-                        <div className='input'> 
+                        <div className='input'>
                             <input type={showPassword ? 'text' : 'password'} placeholder='Confirmer mot de passe' value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
                             <span className="bar"></span>
-                            <span className="password2-toggle" onClick={() => setShowPassword(!showPassword)}>
-                                {showPassword ? '👁️' : '👁️‍🗨️'}
-                            </span>
                         </div>
 
                         <div className='button'>
                             <button type='submit'>S'inscrire</button>
                         </div>
-
-                        <div className='button'>
-                            <button type='submit' onClick={onLoginClick}>Se connecter</button>
-                        </div>
-
                     </form>
+                    <div className='button login-button'>
+                        <button type='button' onClick={handleLoginClick}>Se connecter</button>
+                    </div>
                 </div>
             </div>
         </div>

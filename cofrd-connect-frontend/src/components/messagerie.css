@@ -21,11 +21,23 @@
 .contacts-header {
     padding: 20px;
     border-bottom: 1px solid #e1e1e1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .contacts-header h2 {
     margin: 0;
     color: #2c3e50;
+}
+
+.contacts-header img {
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.contacts-header img:hover {
+    transform: scale(1.1);
 }
 
 .contacts {
@@ -279,12 +291,12 @@
 }
 
 .last-message {
-    color: #666;
-    font-size: 0.9em;
-    margin: 0;
+    margin: 5px 0 0;
+    font-size: 0.8em;
+    color: #7f8c8d;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .messagerie-text-container {
@@ -317,4 +329,88 @@
 .messagerie-logo-text {
     margin: 0;
     padding-right: 20px; /* Espace pour le badge */
+}
+
+.all-users-list {
+    overflow-y: auto;
+    max-height: calc(100% - 80px);
+}
+
+.all-users-list .contact-item {
+    padding: 15px;
+    border-bottom: 1px solid #e1e1e1;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.all-users-list .contact-item:hover {
+    background-color: #e3f2fd;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.users-modal {
+    background: white;
+    border-radius: 10px;
+    width: 400px;
+    max-height: 80vh;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #e1e1e1;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: #2c3e50;
+}
+
+.close-modal {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #7f8c8d;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.close-modal:hover {
+    background-color: #f0f0f0;
+}
+
+.modal-content {
+    overflow-y: auto;
+    max-height: calc(80vh - 70px);
+    padding: 10px 0;
+}
+
+.modal-content .contact-item {
+    padding: 15px 20px;
+}
+
+.modal-content .contact-item:hover {
+    background-color: #f5f6fa;
 }

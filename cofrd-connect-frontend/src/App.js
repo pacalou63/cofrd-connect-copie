@@ -20,11 +20,16 @@ function App() {
   const [showMessagerie, setShowMessagerie] = useState(false);
   
   useEffect(() => {
-      const storedUser = JSON.parse(localStorage.getItem('currentUser'));
-      if (storedUser) {
-          setCurrentUser(storedUser);
-          setIsLoggedIn(true);
-      }
+    // Nettoyer le localStorage quand la page est fermée
+    const handleBeforeUnload = () => {
+      localStorage.removeItem('currentUser');
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   }, []);
 
   const handleLoginSuccess = (user) => {
@@ -73,7 +78,12 @@ function App() {
   return (
 
       <div>
-        {isLoggedIn ? (
+        {showSignup ? (
+          <Signup
+            onSignupSuccess={handleSignupSuccess}
+            onBackToLogin={() => setShowSignup(false)}
+          />
+        ) : isLoggedIn ? (
           showMessagerie ? (
             <Messagerie
               user={currentUser}
@@ -100,15 +110,10 @@ function App() {
               onLogout={handleLogout}
             />
           )
-        ) : showSignup ? (
-          <Signup 
-            onSignupSuccess={handleSignupSuccess} 
-            onLoginClick={() => setShowSignup(false)} 
-          />
         ) : (
           <Login 
-            onLoginSuccess={handleLoginSuccess} 
-            onSignupClick={() => setShowSignup(true)} 
+            onLoginSuccess={handleLoginSuccess}
+            onSignupClick={() => setShowSignup(true)}
           />
         )}
       </div>

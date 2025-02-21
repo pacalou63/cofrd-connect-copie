@@ -12,8 +12,30 @@ const io = require('socket.io')(server, {
     }
 });
 
-app.use(cors());
+// Configuration CORS
+app.use(cors({
+    origin: 'http://localhost:3000',
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Accept']
+}));
+
+// Middleware pour parser le JSON
 app.use(express.json());
+
+// Middleware pour logger les requêtes
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.url}`, req.body);
+    next();
+});
+
+// Middleware pour gérer les erreurs JSON
+app.use((err, req, res, next) => {
+    if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+        console.error('Erreur de parsing JSON:', err);
+        return res.status(400).json({ message: 'Invalid JSON' });
+    }
+    next();
+});
 
 // Charger les données mock
 const mockDataPath = path.join(__dirname, '../cofrd-connect-frontend/src/mockData.json');
@@ -35,7 +57,58 @@ const saveMessages = () => {
     fs.writeFileSync(path.join(__dirname, 'messages.json'), JSON.stringify(messages), 'utf8');
 };
 
-// Routes API pour les messages
+// Stocker les connexions des utilisateurs
+const userSockets = new Map();
+
+// Routes pour les utilisateurs
+app.get('/api/users', (req, res) => {
+    res.json(mockData.users);
+});
+
+app.get('/api/users/:id', (req, res) => {
+    const id = parseInt(req.params.id);
+    const user = mockData.users.find(u => u.id === id);
+    if (!user) {
+        return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    res.json(user);
+});
+
+app.post('/api/users', async (req, res) => {
+    try {
+        console.log('Requête reçue:', req.body);
+        const { username, email, password } = req.body;
+        
+        // Vérifier si l'utilisateur existe déjà
+        const userExists = mockData.users.find(u => u.username === username || u.email === email);
+        if (userExists) {
+            return res.status(400).json({ message: 'Utilisateur ou email déjà utilisé' });
+        }
+
+        // Créer le nouvel utilisateur
+        const newUser = {
+            id: mockData.users.length + 1,
+            username,
+            password,
+            email,
+            admin: 0
+        };
+
+        // Ajouter l'utilisateur aux données
+        mockData.users.push(newUser);
+
+        // Sauvegarder dans le fichier mockData.json
+        await fs.promises.writeFile(mockDataPath, JSON.stringify(mockData, null, 2), 'utf8');
+        console.log('Nouvel utilisateur créé:', newUser);
+
+        res.status(201).json(newUser);
+    } catch (error) {
+        console.error('Erreur lors de la création de l\'utilisateur:', error);
+        res.status(500).json({ message: 'Erreur lors de la création de l\'utilisateur' });
+    }
+});
+
+// Routes pour les messages
 app.get('/api/messages', (req, res) => {
     res.json(messages);
 });
@@ -48,32 +121,15 @@ app.get('/api/messages/:userId', (req, res) => {
     res.json(userMessages);
 });
 
-// Route pour récupérer tous les utilisateurs
-app.get('/api/users', (req, res) => {
-    res.json(mockData.users);
-});
-
-// Route pour récupérer un utilisateur spécifique
-app.get('/api/users/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    const user = mockData.users.find(u => u.id === id);
-    if (!user) {
-        return res.status(404).json({ message: 'Utilisateur non trouvé' });
-    }
-    res.json(user);
-});
-
-// Route pour récupérer toutes les activités
+// Routes pour les activités
 app.get('/api/activites', (req, res) => {
     res.json(mockData.activites);
 });
 
-// Route pour récupérer une activité
 app.get('/api/activites/id', (req, res) => {
     res.json(mockData.activites);
 });
 
-// Route pour créer une activité
 app.post('/api/activites', (req, res) => {
     const newActivite = req.body;
     newActivite.idActivite = mockData.activites.length + 1;
@@ -106,16 +162,13 @@ app.put('/api/activites/:id', (req, res) => {
     res.json(mockData.activites[index]);
 });
 
-// Stocker les connexions des utilisateurs
-const userSockets = new Map();
-
+// Gestion des sockets
 io.on('connection', (socket) => {
     console.log('Un utilisateur s\'est connecté');
 
     socket.on('login', (userId) => {
-        console.log('User logged in:', userId);
         userSockets.set(userId, socket.id);
-        console.log('Connected users:', Array.from(userSockets.entries()));
+        console.log(`Utilisateur ${userId} connecté avec socket ${socket.id}`);
     });
 
     socket.on('private message', ({ from, to, message }) => {
@@ -143,7 +196,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        console.log('User disconnected');
+        console.log('Un utilisateur s\'est déconnecté');
         for (const [userId, socketId] of userSockets.entries()) {
             if (socketId === socket.id) {
                 userSockets.delete(userId);
@@ -155,7 +208,8 @@ io.on('connection', (socket) => {
     });
 });
 
-// Modifier la dernière ligne pour utiliser 'server' au lieu de 'app'
-server.listen(3001, () => {
-    console.log('Serveur démarré sur le port 3001');
+// Démarrer le serveur
+const PORT = 3001;
+server.listen(PORT, () => {
+    console.log(`Serveur démarré sur le port ${PORT}`);
 });

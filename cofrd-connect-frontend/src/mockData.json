@@ -27,6 +27,13 @@
       "password": "admin123",
       "email": "admin@example.com",
       "admin": 1
+    },
+    {
+      "id": 5,
+      "username": "antoine",
+      "password": "antoine12",
+      "email": "antoine@mail.com",
+      "admin": 0
     }
   ],
   "activites": [
