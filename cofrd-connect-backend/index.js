@@ -38,7 +38,7 @@ app.use((err, req, res, next) => {
 });
 
 // Charger les données mock
-const mockDataPath = path.join(__dirname, '../cofrd-connect-frontend/src/mockData.json');
+const mockDataPath =  '/app/mockData.json';
 const mockData = JSON.parse(fs.readFileSync(mockDataPath, 'utf8'));
 
 // Structure pour stocker les messages
