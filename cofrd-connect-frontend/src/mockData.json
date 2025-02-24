@@ -34,6 +34,13 @@
       "password": "antoine12",
       "email": "antoine@mail.com",
       "admin": 0
+    },
+    {
+      "id": 6,
+      "username": "davy",
+      "password": "davy12",
+      "email": "davy@mail.com",
+      "admin": 0
     }
   ],
   "activites": [

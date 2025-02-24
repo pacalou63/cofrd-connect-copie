@@ -86,7 +86,6 @@ const Dashboard = ({ user, onLogout }) => {
             console.log("Données reçues:", data);
 
             if (Array.isArray(data) && data.length > 0) {
-                // Trier les activités par date
                 const sortedActivites = [...data].sort((a, b) => 
                     new Date(a.date) - new Date(b.date)
                 );
@@ -131,25 +130,31 @@ const Dashboard = ({ user, onLogout }) => {
                     .slice(0, 5);
                 setProchainActivites(prochains);
 
-                // Données pour le graphique en camembert
-                const lieuxUniques = sortedActivites.reduce((acc, activite) => {
+                // Configuration du pieChart pour les villes spécifiques
+                const villes = {
+                    'Oshawa': '#FF6384',
+                    'Scarborough': '#36A2EB',
+                    'Bowmanville': '#FFCE56',
+                    'Toronto': '#4BC0C0',
+                    'Whitby': '#9966FF'
+                };
+
+                const villesCount = {};
+                sortedActivites.forEach(activite => {
                     if (activite && activite.lieu) {
-                        acc[activite.lieu] = (acc[activite.lieu] || 0) + 1;
+                        Object.keys(villes).forEach(ville => {
+                            if (activite.lieu.includes(ville)) {
+                                villesCount[ville] = (villesCount[ville] || 0) + 1;
+                            }
+                        });
                     }
-                    return acc;
-                }, {});
+                });
 
                 const pieData = {
-                    labels: Object.keys(lieuxUniques),
+                    labels: Object.keys(villesCount),
                     datasets: [{
-                        data: Object.values(lieuxUniques),
-                        backgroundColor: [
-                            '#FF6384',
-                            '#36A2EB',
-                            '#FFCE56',
-                            '#4BC0C0',
-                            '#9966FF'
-                        ],
+                        data: Object.values(villesCount),
+                        backgroundColor: Object.keys(villesCount).map(ville => villes[ville]),
                         borderWidth: 1
                     }]
                 };
@@ -367,16 +372,17 @@ const Dashboard = ({ user, onLogout }) => {
                                 </div>
                                 
                                 <div className='paging'>
-                                    <div className='activite-paging'> 
-                                        <div className='activite-logo' onClick={toggleMain}>
-                                            <img src={activiteLogo} alt="activite-paging" />
-                                            <h2 className='activite-logo-text'>Événements</h2>
-                                        </div>
-                                    </div>
+                                    
                                     <div className='dashboard-paging'> 
                                         <div className='dashboard-logo'>
                                             <img src={dashboard} alt="dashboard-paging" />
                                             <h2 className='dashboard-logo-text active'>Tableau de bord</h2>
+                                        </div>
+                                    </div>
+                                    <div className='activite-paging'> 
+                                        <div className='activite-logo' onClick={toggleMain}>
+                                            <img src={activiteLogo} alt="activite-paging" />
+                                            <h2 className='activite-logo-text'>Événements</h2>
                                         </div>
                                     </div>
                                     {user.admin === 1 && (

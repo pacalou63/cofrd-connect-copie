@@ -7,7 +7,6 @@ import Dashboard from './components/dashboard';
 import UsersView from './components/usersView';
 import Messagerie from './components/messagerie';
 
-
 function App() {
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -105,9 +104,8 @@ function App() {
               onLogout={handleLogout}
             />
           ) : (
-            <Main 
+            <Dashboard 
               user={currentUser}
-              onLogout={handleLogout}
             />
           )
         ) : (

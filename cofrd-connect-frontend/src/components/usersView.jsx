@@ -126,16 +126,17 @@ const UsersView = ({ user, onLogout }) => {
                                 </div>
                                     
 
-                                <div className='activite-paging'> 
-                                    <div className='activite-logo' onClick={toggleMain}>
-                                        <img src={activiteLogo} alt="activite-paging" />
-                                        <h2 className='activite-logo-text'>Événements</h2>
-                                    </div>
-                                </div>
+                                
                                 <div className='dashboard-paging'> 
                                     <div className='dashboard-logo' onClick={toggleDashboard}>
                                         <img src={dashboard} alt="dashboard-paging" />
                                         <h2 className='dashboard-logo-text'>Tableau de bord</h2>
+                                    </div>
+                                </div>
+                                <div className='activite-paging'> 
+                                    <div className='activite-logo' onClick={toggleMain}>
+                                        <img src={activiteLogo} alt="activite-paging" />
+                                        <h2 className='activite-logo-text'>Événements</h2>
                                     </div>
                                 </div>
                                 <div className='users-paging'> 

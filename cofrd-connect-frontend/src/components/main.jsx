@@ -227,16 +227,17 @@ const Main = ({ user, onClickDashboard, onLogout }) => {
                                     </div>
                                 </div>   
                                 <div className='paging'>
-                                    <div className='activite-paging'> 
-                                        <div className='activite-logo'>
-                                            <img src={activiteLogo} alt="activite-paging" />
-                                            <h2 className='activite-logo-text active'>Événements</h2>
-                                        </div>
-                                    </div>
+                                    
                                     <div className='dashboard-paging'> 
                                         <div className='dashboard-logo' onClick={toggleDashboard}>
                                             <img src={dashboardLogo} alt="dashboard-paging" />
                                             <h2 className='dashboard-logo-text'>Tableau de bord</h2>
+                                        </div>
+                                    </div>
+                                    <div className='activite-paging'> 
+                                        <div className='activite-logo'>
+                                            <img src={activiteLogo} alt="activite-paging" />
+                                            <h2 className='activite-logo-text active'>Événements</h2>
                                         </div>
                                     </div>
                                     {user.admin === 1 && (
