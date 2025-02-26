@@ -38,8 +38,9 @@ app.use((err, req, res, next) => {
 });
 
 // Charger les données mock
-const mockDataPath =  '/app/mockData.json';
+const mockDataPath = path.join(__dirname, '../cofrd-connect-frontend/src/mockData.json');
 const mockData = JSON.parse(fs.readFileSync(mockDataPath, 'utf8'));
+
 
 // Structure pour stocker les messages
 let messages = [];
@@ -59,6 +60,11 @@ const saveMessages = () => {
 
 // Stocker les connexions des utilisateurs
 const userSockets = new Map();
+
+app.get('/', (req, res) => {
+    res.json({ message: 'Backend is running!' });
+});
+
 
 // Routes pour les utilisateurs
 app.get('/api/users', (req, res) => {

@@ -1,3 +1,4 @@
+version: '3.8'
 services:
   backend:
     build: ./cofrd-connect-backend
@@ -7,11 +8,11 @@ services:
       - CORS_ORIGIN=http://localhost:3000
       - PORT=3001
     volumes:
-    - ./cofrd-connect-frontend/src/mockData.json:/app/mockData.json  # Monte le fichier dans le conteneur
+      - ./cofrd-connect-frontend/src/mockData.json:/app/mockData.json  # Monte le fichier dans le conteneur
 
   frontend:
     build: ./cofrd-connect-frontend
     ports:
-      - "3000:3000" 
+      - "3000:3000"
     environment:
       - REACT_APP_API_URL=http://localhost:3001

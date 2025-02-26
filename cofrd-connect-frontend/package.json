@@ -2,7 +2,7 @@
   "name": "cofrd-connect-frontend",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://pacalou63.github.io/cofrd-connect-frontend",
+  "homepage": ".",
   "dependencies": {
     "chart.js": "^4.4.7",
     "cra-template": "1.2.0",
@@ -10,7 +10,8 @@
     "react-chartjs-2": "^5.3.0",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
-    "socket.io-client": "^4.7.4"
+    "socket.io-client": "^4.7.4",
+    "wrangler": "^3.109.3"
   },
   "scripts": {
     "start": "react-scripts start",
