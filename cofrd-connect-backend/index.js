@@ -13,10 +13,12 @@ const io = require('socket.io')(server, {
 });
 
 // Configuration CORS
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://cofrd-connect-frontend.vercel.app';
+
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: FRONTEND_URL,
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Accept']
+    credentials: true
 }));
 
 // Middleware pour parser le JSON
