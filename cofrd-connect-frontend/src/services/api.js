@@ -6,7 +6,7 @@ const mockUsers = [
     { id: 3, username: 'user2', email: 'user2@example.com', admin: 0 },
 ];
 
-const API_URL = 'http://localhost:3001/api';
+const API_URL = 'https://cofrd-connect-backend.vercel.app/api';
 
 let activites = [...mockActivites];
 let users = [...mockUsers];

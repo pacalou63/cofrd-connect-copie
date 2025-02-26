@@ -35,7 +35,7 @@ export const Signup = ({ onSignupSuccess, onBackToLogin }) => {
 
         try {
             console.log('Tentative d\'inscription...');
-            const response = await fetch('http://localhost:3001/api/users', {
+            const response = await fetch('https://cofrd-connect-backend.vercel.app/api/users', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

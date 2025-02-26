@@ -41,7 +41,7 @@ const Messagerie = ({ user, onLogout }) => {
 
     useEffect(() => {
         console.log('Connecting socket for user:', user.id);
-        socketRef.current = io('http://localhost:3001');
+        socketRef.current = io('https://cofrd-connect-backend.vercel.app');
 
         socketRef.current.emit('login', user.id);
 
@@ -101,7 +101,7 @@ const Messagerie = ({ user, onLogout }) => {
     useEffect(() => {
         const loadMessages = async () => {
             try {
-                const response = await fetch(`http://localhost:3001/api/messages/${user.id}`);
+                const response = await fetch(`https://cofrd-connect-backend.vercel.app/api/messages/${user.id}`);
                 if (!response.ok) {
                     throw new Error('Erreur lors du chargement des messages');
                 }
