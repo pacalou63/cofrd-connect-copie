@@ -1,0 +1,125 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "toto",
+      "password": "password123",
+      "email": "toto@example.com",
+      "admin": 0
+    },
+    {
+      "id": 2,
+      "username": "user1",
+      "password": "password1",
+      "email": "user1@example.com",
+      "admin": 0
+    },
+    {
+      "id": 3,
+      "username": "user2",
+      "password": "password2",
+      "email": "user2@example.com",
+      "admin": 0
+    },
+    {
+      "id": 4,
+      "username": "admin",
+      "password": "admin123",
+      "email": "admin@example.com",
+      "admin": 1
+    },
+    {
+      "id": 5,
+      "username": "antoine",
+      "password": "antoine12",
+      "email": "antoine@mail.com",
+      "admin": 0
+    },
+    {
+      "id": 6,
+      "username": "davy",
+      "password": "davy12",
+      "email": "davy@mail.com",
+      "admin": 0
+    }
+  ],
+  "activites": [
+    {
+      "idActivite": 2,
+      "libelleActivite": "Atelier de peinture",
+      "description": "Un atelier pour apprendre à peindre.",
+      "lieu": "Centre culturel Oshawa",
+      "date": "2025-09-13"
+    },
+    {
+      "idActivite": 3,
+      "libelleActivite": "Concert de Jazz",
+      "description": "Un concert de jazz avec des artistes locaux.",
+      "lieu": "Salle de Concert Whitby",
+      "date": "2025-02-01"
+    },
+    {
+      "idActivite": 4,
+      "libelleActivite": "Exposition d'Art",
+      "description": "Exposition d'art contemporain.",
+      "lieu": "Galerie d'Art Oshawa",
+      "date": "2025-02-05"
+    },
+    {
+      "idActivite": 5,
+      "libelleActivite": "Marathon",
+      "description": "Participez à notre marathon annuel.",
+      "lieu": "Parc Central Bowmanville",
+      "date": "2025-02-10"
+    },
+    {
+      "idActivite": 6,
+      "libelleActivite": "Festival de Musique",
+      "description": "Un festival de musique avec plusieurs artistes.",
+      "lieu": "Plage Oshawa",
+      "date": "2025-02-15"
+    },
+    {
+      "idActivite": 7,
+      "libelleActivite": "Séminaire Tech",
+      "description": "Séminaire sur les dernières tendances technologiques.",
+      "lieu": "Centre de Conférence Toronto",
+      "date": "2025-07-20"
+    },
+    {
+      "idActivite": 8,
+      "libelleActivite": "Pièce de Théâtre",
+      "description": "Une pièce de théâtre captivante.",
+      "lieu": "Théâtre Municipal Toronto",
+      "date": "2025-02-25"
+    },
+    {
+      "idActivite": 9,
+      "libelleActivite": "Atelier de Cuisine",
+      "description": "Apprenez à cuisiner des plats délicieux.",
+      "lieu": "École de Cuisine Whitby",
+      "date": "2025-03-01"
+    },
+    {
+      "idActivite": 10,
+      "libelleActivite": "Match de Football",
+      "description": "Venez encourager votre équipe locale.",
+      "lieu": "Stade Municipal Oshawa",
+      "date": "2025-11-05"
+    },
+    {
+      "idActivite": 11,
+      "libelleActivite": "Séance de Yoga",
+      "description": "Séance de yoga en plein air.",
+      "lieu": "Parc de la Ville Whitby",
+      "date": "2025-03-10"
+    },
+    {
+      "idActivite": 12,
+      "libelleActivite": "Conférence sur l'Environnement",
+      "description": "Conférence sur les enjeux environnementaux.",
+      "lieu": "Université Scarborough",
+      "date": "2025-03-15"
+    }
+  ]
+}
