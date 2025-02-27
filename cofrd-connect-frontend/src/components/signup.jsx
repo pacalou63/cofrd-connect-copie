@@ -43,6 +43,7 @@ export const Signup = ({ onSignupSuccess, onBackToLogin }) => {
                     'Accept': 'application/json',
                     'Origin': window.location.origin
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     username,
                     email,
@@ -61,14 +62,13 @@ export const Signup = ({ onSignupSuccess, onBackToLogin }) => {
             console.log('Content-Type:', contentType);
 
             if (!response.ok) {
-                if (contentType && contentType.includes('application/json')) {
-                    const data = await response.json();
-                    throw new Error(data.message || 'Erreur lors de l\'inscription');
-                } else {
-                    const text = await response.text();
-                    console.error('Réponse non-JSON reçue:', text);
-                    throw new Error('Le serveur a retourné une réponse invalide');
-                }
+                const errorText = await response.text();
+                console.error('Réponse d\'erreur:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    body: errorText
+                });
+                throw new Error(errorText || 'Erreur lors de l\'inscription');
             }
 
             const newUser = await response.json();

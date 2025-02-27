@@ -5,22 +5,17 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const server = http.createServer(app);
-const io = require('socket.io')(server, {
-    cors: {
-        origin: process.env.CORS_ORIGIN || "http://localhost:3000",
-        methods: ["GET", "POST"]
-    }
-});
 
-// Configuration CORS
-const FRONTEND_URLS = [
-    process.env.FRONTEND_URL || 'https://cofrd-connect-frontend.vercel.app',
-    'https://cofrd-connect-frontend-abpcyzts8-pascals-projects-0029ecdd.vercel.app'
-];
+// Configuration CORS commune
+const isAllowedOrigin = (origin) => {
+    if (!origin) return true;
+    return origin === (process.env.FRONTEND_URL || 'https://cofrd-connect-frontend.vercel.app') ||
+           origin.endsWith('.vercel.app');
+};
 
-app.use(cors({
+const corsOptions = {
     origin: function(origin, callback) {
-        if (!origin || FRONTEND_URLS.includes(origin)) {
+        if (isAllowedOrigin(origin)) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'));
@@ -28,7 +23,23 @@ app.use(cors({
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
-}));
+};
+
+const io = require('socket.io')(server, {
+    cors: {
+        origin: (origin, callback) => {
+            if (isAllowedOrigin(origin)) {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
+        methods: ['GET', 'POST', 'PUT', 'DELETE'],
+        credentials: true
+    }
+});
+
+app.use(cors(corsOptions));
 
 // Middleware pour parser le JSON
 app.use(express.json());
@@ -52,7 +63,6 @@ app.use((err, req, res, next) => {
 const mockDataPath = path.join(__dirname, 'mockData.json');
 const mockData = JSON.parse(fs.readFileSync(mockDataPath, 'utf8'));
 
-
 // Structure pour stocker les messages
 let messages = [];
 
@@ -75,7 +85,6 @@ const userSockets = new Map();
 app.get('/', (req, res) => {
     res.json({ message: 'Backend is running!' });
 });
-
 
 // Routes pour les utilisateurs
 app.get('/api/users', (req, res) => {
