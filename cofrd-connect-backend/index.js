@@ -59,9 +59,17 @@ app.use((err, req, res, next) => {
     next();
 });
 
-// Charger les données mock
+// Charger les données mock initiales
 const mockDataPath = path.join(__dirname, 'mockData.json');
-const mockData = JSON.parse(fs.readFileSync(mockDataPath, 'utf8'));
+let mockData;
+try {
+    const rawData = fs.readFileSync(mockDataPath, 'utf8');
+    mockData = JSON.parse(rawData);
+    console.log('Données mockData chargées:', mockData);
+} catch (error) {
+    console.error('Erreur lors du chargement de mockData.json:', error);
+    mockData = { users: [] };
+}
 
 // Structure pour stocker les messages
 let messages = [];
@@ -100,37 +108,55 @@ app.get('/api/users/:id', (req, res) => {
     res.json(user);
 });
 
-app.post('/api/users', async (req, res) => {
+app.post('/api/users', (req, res) => {
     try {
-        console.log('Requête reçue:', req.body);
+        console.log('Requête d\'inscription reçue:', req.body);
         const { username, email, password } = req.body;
         
+        // Validation des données
+        if (!username || !email || !password) {
+            console.log('Données manquantes');
+            return res.status(400).json({ 
+                message: 'Tous les champs sont requis (username, email, password)' 
+            });
+        }
+        
         // Vérifier si l'utilisateur existe déjà
-        const userExists = mockData.users.find(u => u.username === username || u.email === email);
+        const userExists = mockData.users.find(
+            u => u.username === username || u.email === email
+        );
+        
         if (userExists) {
-            return res.status(400).json({ message: 'Utilisateur ou email déjà utilisé' });
+            console.log('Utilisateur existe déjà');
+            return res.status(400).json({ 
+                message: 'Un utilisateur avec cet email ou ce nom d\'utilisateur existe déjà' 
+            });
         }
 
         // Créer le nouvel utilisateur
         const newUser = {
-            id: mockData.users.length + 1,
+            id: mockData.users.length > 0 ? Math.max(...mockData.users.map(u => u.id)) + 1 : 1,
             username,
-            password,
             email,
+            password,
             admin: 0
         };
 
-        // Ajouter l'utilisateur aux données
+        // Ajouter l'utilisateur aux données en mémoire
         mockData.users.push(newUser);
-
-        // Sauvegarder dans le fichier mockData.json
-        await fs.promises.writeFile(mockDataPath, JSON.stringify(mockData, null, 2), 'utf8');
         console.log('Nouvel utilisateur créé:', newUser);
 
-        res.status(201).json(newUser);
+        // Retourner l'utilisateur sans le mot de passe
+        const { password: _, ...userWithoutPassword } = newUser;
+        res.status(201).json({
+            message: 'Inscription réussie',
+            user: userWithoutPassword
+        });
     } catch (error) {
         console.error('Erreur lors de la création de l\'utilisateur:', error);
-        res.status(500).json({ message: 'Erreur lors de la création de l\'utilisateur' });
+        res.status(500).json({ 
+            message: 'Erreur lors de la création de l\'utilisateur' 
+        });
     }
 });
 
