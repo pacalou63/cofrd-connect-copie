@@ -35,17 +35,25 @@ export const Signup = ({ onSignupSuccess, onBackToLogin }) => {
 
         try {
             console.log('Tentative d\'inscription...');
+            console.log('Tentative d\'inscription avec les données:', { username, email });
             const response = await fetch('https://cofrd-connect-backend.vercel.app/api/users', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'Origin': window.location.origin
                 },
                 body: JSON.stringify({
                     username,
                     email,
                     password
                 }),
+            });
+
+            console.log('Réponse complète:', {
+                status: response.status,
+                statusText: response.statusText,
+                headers: Object.fromEntries(response.headers.entries())
             });
 
             console.log('Status:', response.status);
