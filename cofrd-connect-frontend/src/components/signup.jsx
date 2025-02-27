@@ -35,45 +35,30 @@ export const Signup = ({ onSignupSuccess, onBackToLogin }) => {
 
         try {
             console.log('Tentative d\'inscription...');
-            console.log('Tentative d\'inscription avec les données:', { username, email });
+            const userData = {
+                username,
+                email,
+                password
+            };
+            console.log('Envoi des données:', userData);
+            
             const response = await fetch('https://cofrd-connect-backend.vercel.app/api/users', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Origin': window.location.origin
+                    'Content-Type': 'application/json'
                 },
-                credentials: 'include',
-                body: JSON.stringify({
-                    username,
-                    email,
-                    password
-                }),
+                body: JSON.stringify(userData)
             });
 
-            console.log('Réponse complète:', {
-                status: response.status,
-                statusText: response.statusText,
-                headers: Object.fromEntries(response.headers.entries())
-            });
-
-            console.log('Status:', response.status);
-            const contentType = response.headers.get('content-type');
-            console.log('Content-Type:', contentType);
+            const data = await response.json();
+            console.log('Réponse du serveur:', data);
 
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Réponse d\'erreur:', {
-                    status: response.status,
-                    statusText: response.statusText,
-                    body: errorText
-                });
-                throw new Error(errorText || 'Erreur lors de l\'inscription');
+                throw new Error(data.message || 'Erreur lors de l\'inscription');
             }
 
-            const newUser = await response.json();
-            console.log('Inscription réussie:', newUser);
-            onSignupSuccess(newUser);
+            console.log('Inscription réussie:', data);
+            onSignupSuccess(data);
         } catch (error) {
             console.error('Erreur lors de l\'inscription:', error);
             setError(error.message || 'Une erreur est survenue lors de l\'inscription');
