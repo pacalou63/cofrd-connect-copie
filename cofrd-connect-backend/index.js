@@ -13,10 +13,19 @@ const io = require('socket.io')(server, {
 });
 
 // Configuration CORS
-const FRONTEND_URL = process.env.FRONTEND_URL || 'https://cofrd-connect-frontend.vercel.app';
+const FRONTEND_URLS = [
+    process.env.FRONTEND_URL || 'https://cofrd-connect-frontend.vercel.app',
+    'https://cofrd-connect-frontend-abpcyzts8-pascals-projects-0029ecdd.vercel.app'
+];
 
 app.use(cors({
-    origin: FRONTEND_URL,
+    origin: function(origin, callback) {
+        if (!origin || FRONTEND_URLS.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true
 }));
