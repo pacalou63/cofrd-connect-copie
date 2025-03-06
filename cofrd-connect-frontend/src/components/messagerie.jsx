@@ -127,11 +127,11 @@ const Messagerie = ({ user, onLogout }) => {
             return;
         }
 
-        const socketUrl = process.env.NODE_ENV === 'production' 
-            ? 'https://cofrd-connect-backend.vercel.app' 
-            : 'http://localhost:3001';
+        const socketUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
         
+        console.log('Socket.IO URL:', socketUrl);
         console.log('Connecting socket for user:', user.id);
+        
         socketRef.current = io(socketUrl, {
             query: { userId: user.id }
         });

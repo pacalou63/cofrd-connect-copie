@@ -42,7 +42,14 @@ export const Signup = ({ onSignupSuccess, onBackToLogin }) => {
             };
             console.log('Envoi des données:', userData);
             
-            const response = await fetch('http://localhost:3001/api/users', {
+            // URL de l'API - Utilise la variable d'environnement ou une valeur par défaut
+            const API_URL = process.env.REACT_APP_API_URL 
+                ? `${process.env.REACT_APP_API_URL}/api/users` 
+                : 'http://localhost:3001/api/users';
+            
+            console.log('Signup API URL:', API_URL);
+            
+            const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

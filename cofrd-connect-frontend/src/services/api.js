@@ -6,10 +6,12 @@ const mockUsersInitial = [
     { id: 3, username: 'user2', email: 'user2@example.com', admin: 0 },
 ];
 
-// URL de l'API - Utilise l'URL de déploiement en production ou localhost en développement
-const API_URL = process.env.NODE_ENV === 'production' 
-    ? 'https://cofrd-connect-backend.vercel.app/api' 
+// URL de l'API - Utilise la variable d'environnement ou une valeur par défaut
+const API_URL = process.env.REACT_APP_API_URL 
+    ? `${process.env.REACT_APP_API_URL}/api` 
     : 'http://localhost:3001/api';
+
+console.log('API URL:', API_URL);
 
 let activites = [...mockActivites];
 let users = [...mockUsersInitial];

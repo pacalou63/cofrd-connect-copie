@@ -12,7 +12,14 @@ export const Login = ({ onLoginSuccess, onSignupClick }) => {
         setError('');
         
         try {
-            const response = await fetch('http://localhost:3001/api/login', {
+            // URL de l'API - Utilise la variable d'environnement ou une valeur par défaut
+            const API_URL = process.env.REACT_APP_API_URL 
+                ? `${process.env.REACT_APP_API_URL}/api/login` 
+                : 'http://localhost:3001/api/login';
+            
+            console.log('Login API URL:', API_URL);
+            
+            const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
