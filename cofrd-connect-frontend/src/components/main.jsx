@@ -50,8 +50,18 @@ const Main = ({ user, onClickDashboard, onLogout }) => {
     useEffect(() => {
         const loadActivites = async () => {
             const data = await fetchActivites();
+            console.log('Main - Données d\'activités chargées:', data);
             if (data) {
-                setActivites(data);
+                // Vérifier si data est un tableau ou s'il contient une propriété activites
+                if (Array.isArray(data)) {
+                    console.log('Main - Structure de la première activité:', data.length > 0 ? data[0] : 'Aucune activité');
+                    setActivites(data);
+                } else if (data.activites && Array.isArray(data.activites)) {
+                    console.log('Main - Structure de la première activité:', data.activites.length > 0 ? data.activites[0] : 'Aucune activité');
+                    setActivites(data.activites);
+                } else {
+                    console.warn('Format de données inattendu:', data);
+                }
             }
         };
         loadActivites();
@@ -92,13 +102,21 @@ const Main = ({ user, onClickDashboard, onLogout }) => {
         const idActivite = activites.length + 1;
         const newActiviteWithId = { idActivite, ...newActivite };
         
+        console.log('Main - Tentative d\'ajout d\'activité:', newActiviteWithId);
         const result = await createActivite(newActiviteWithId);
+        console.log('Main - Résultat de createActivite:', result);
+        
         if (result) {
+            console.log('Main - Activité ajoutée avec succès');
             setActivites([...activites, result]); 
             updateLocalStorageActivites([...activites, result]);
             setNewActivite({ libelleActivite: '', description: '', lieu: '', date: '' }); 
             setShowAddForm(false);
+            
+            // Recharger les activités depuis le backend après l'ajout
+            setTimeout(reloadActivites, 500);
         } else {
+            console.error('Main - Erreur lors de l\'ajout de l\'activité');
             alert('Erreur lors de l\'ajout de l\'activité');
         }
     };
@@ -122,42 +140,163 @@ const Main = ({ user, onClickDashboard, onLogout }) => {
         }
     };
 
+    const reloadActivites = async () => {
+        console.log('Main - Rechargement des activités depuis le backend');
+        const data = await fetchActivites();
+        console.log('Main - Données d\'activités rechargées:', data);
+        
+        if (data) {
+            let newActivites = [];
+            
+            // Vérifier si data est un tableau ou s'il contient une propriété activites
+            if (Array.isArray(data)) {
+                console.log('Main - Structure de la première activité rechargée:', data.length > 0 ? data[0] : 'Aucune activité');
+                newActivites = data;
+            } else if (data.activites && Array.isArray(data.activites)) {
+                console.log('Main - Structure de la première activité rechargée:', data.activites.length > 0 ? data.activites[0] : 'Aucune activité');
+                newActivites = data.activites;
+            } else {
+                console.warn('Format de données inattendu lors du rechargement:', data);
+                return; // Ne pas continuer si le format est inattendu
+            }
+            
+            // Mettre à jour l'état et le localStorage
+            console.log('Main - Mise à jour de l\'état avec les nouvelles activités:', newActivites);
+            setActivites(newActivites);
+            updateLocalStorageActivites(newActivites);
+        }
+    };
+
     const handleDeleteActivite = async (id) => {
-        const result = await deleteActiviteApi(id);
+        console.log('Main - Tentative de suppression d\'activité avec ID:', id);
+        
+        // Vérifier si l'activité a un _id (ID MongoDB) ou idActivite
+        const activite = activites.find(a => 
+            (a._id && a._id === id) || 
+            (a.idActivite && a.idActivite === id)
+        );
+        
+        console.log('Main - Activité à supprimer:', activite);
+        
+        // Utiliser _id s'il existe, sinon utiliser idActivite
+        const idToDelete = activite && activite._id ? activite._id : id;
+        console.log('Main - ID à utiliser pour la suppression:', idToDelete);
+        
+        const result = await deleteActiviteApi(idToDelete);
+        console.log('Main - Résultat de deleteActivite:', result);
+        
         if (result && result.success) {
-            setActivites(activites.filter(activite => activite.idActivite !== id));
-            updateLocalStorageActivites(activites.filter(activite => activite.idActivite !== id));
+            console.log('Main - Suppression réussie, mise à jour de l\'état');
+            console.log('Main - Activités avant suppression:', activites);
+            
+            // Filtrer les activités en utilisant l'ID approprié
+            const updatedActivites = activites.filter(a => {
+                if (activite && activite._id && a._id) {
+                    return a._id !== activite._id;
+                }
+                if (activite && activite.idActivite && a.idActivite) {
+                    return a.idActivite !== activite.idActivite;
+                }
+                return true; // Garder les activités qui n'ont pas d'ID correspondant
+            });
+            
+            console.log('Main - Activités après suppression:', updatedActivites);
+            setActivites(updatedActivites);
+            updateLocalStorageActivites(updatedActivites);
+            
+            // Recharger les activités depuis le backend après la suppression
+            setTimeout(reloadActivites, 500);
         } else {
+            console.error('Main - Erreur lors de la suppression de l\'activité:', result?.error);
             alert('Erreur lors de la suppression de l\'activité');
         }
     };
 
     const handleEditActivite = (id) => {
-        const activiteToEdit = activites.find(activite => activite.idActivite === id);
-        setEditingActivite(activiteToEdit);
-        setShowEditForm(true);
+        console.log('Tentative d\'édition de l\'activité avec ID:', id);
+        
+        // Rechercher l'activité par _id ou idActivite
+        const activiteToEdit = activites.find(activite => 
+            (activite._id && activite._id === id) || 
+            (activite.idActivite && activite.idActivite === id)
+        );
+        
+        console.log('Activité trouvée pour édition:', activiteToEdit);
+        
+        if (activiteToEdit) {
+            setEditingActivite(activiteToEdit);
+            setShowEditForm(true);
+        } else {
+            console.error('Activité non trouvée avec ID:', id);
+            alert('Erreur: Activité non trouvée');
+        }
     };
 
     const handleUpdateActivite = async (updatedActivite) => {
         try {
             console.log("Données envoyées pour mise à jour:", updatedActivite);
-            const result = await updateActiviteApi(updatedActivite);
-            console.log("Résultat de la mise à jour:", result);
-            if (result) {
-                const newActivites = activites.map(activite => 
-                    activite.idActivite === updatedActivite.idActivite ? result : activite
-                );
-                setActivites(newActivites);
-                updateLocalStorageActivites(newActivites);
-                setShowEditForm(false);
-                setEditingActivite(null);
+            
+            // Vérifier si des champs sont vides et les remplir avec les valeurs existantes
+            const activiteToUpdate = activites.find(a => 
+                (a._id && updatedActivite._id && a._id === updatedActivite._id) || 
+                (a.idActivite && updatedActivite.idActivite && a.idActivite === updatedActivite.idActivite)
+            );
+            
+            console.log("Activité trouvée pour mise à jour:", activiteToUpdate);
+            
+            if (activiteToUpdate) {
+                // Créer une copie de l'activité existante
+                const mergedActivite = { ...activiteToUpdate };
+                
+                // Ne mettre à jour que les champs qui ont été modifiés
+                if (updatedActivite.libelleActivite) mergedActivite.libelleActivite = updatedActivite.libelleActivite;
+                if (updatedActivite.description) mergedActivite.description = updatedActivite.description;
+                if (updatedActivite.lieu) mergedActivite.lieu = updatedActivite.lieu;
+                if (updatedActivite.date) mergedActivite.date = updatedActivite.date;
+                
+                console.log("Données fusionnées pour mise à jour:", mergedActivite);
+                
+                const result = await updateActiviteApi(mergedActivite);
+                console.log("Résultat de la mise à jour:", result);
+                
+                if (result) {
+                    // Mettre à jour l'état local avec le résultat de l'API
+                    const newActivites = activites.map(activite => {
+                        if ((activite._id && result._id && activite._id === result._id) || 
+                            (activite.idActivite && result.idActivite && activite.idActivite === result.idActivite)) {
+                            return result;
+                        }
+                        return activite;
+                    });
+                    
+                    console.log("Nouvel état des activités après mise à jour:", newActivites);
+                    
+                    setActivites(newActivites);
+                    updateLocalStorageActivites(newActivites);
+                    setShowEditForm(false);
+                    setEditingActivite(null);
+                    
+                    // Recharger les activités depuis le backend après la mise à jour
+                    setTimeout(reloadActivites, 500);
+                } else {
+                    throw new Error('La mise à jour a échoué');
+                }
             } else {
-                throw new Error('La mise à jour a échoué');
+                throw new Error('Activité non trouvée');
             }
         } catch (error) {
             console.error('Erreur:', error);
             alert('Erreur lors de la mise à jour de l\'activité');
         }
+    };
+
+    const formatDate = (dateString) => {
+        const options = { 
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        };
+        return new Date(dateString).toLocaleDateString('fr-FR', options);
     };
 
     const handleSort = (key) => {
@@ -182,12 +321,22 @@ const Main = ({ user, onClickDashboard, onLogout }) => {
     };
 
     console.log('Activités:', activites); 
-
+    
+    console.log('Activités avant filtrage:', activites); 
     
     const filteredActivites = activites.filter(activite => {
-        if (!activite || !activite.lieu) return false;
-        return lieuFilter === '' || activite.lieu.toLowerCase().includes(lieuFilter.toLowerCase());
+        if (!activite || !activite.lieu) {
+            console.log('Activité filtrée car manquante ou sans lieu:', activite);
+            return false;
+        }
+        const shouldInclude = lieuFilter === '' || activite.lieu.toLowerCase().includes(lieuFilter.toLowerCase());
+        if (!shouldInclude) {
+            console.log('Activité filtrée par le filtre de lieu:', activite);
+        }
+        return shouldInclude;
     });
+    
+    console.log('Activités après filtrage:', filteredActivites);
 
     const handleFilter = (e) => {
         const value = e.target.value || '';
@@ -327,30 +476,33 @@ const Main = ({ user, onClickDashboard, onLogout }) => {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {filteredActivites.map((activite) => (
-                                                    <tr key={activite.idActivite}>
-                                                        <td>{activite.libelleActivite}</td>
-                                                        <td>{activite.description}</td>
-                                                        <td>{activite.lieu}</td>
-                                                        <td>{activite.date}</td>
-                                                        {user.admin === 1 && ( 
-                                                            <td>
-                                                                <img 
-                                                                    src={editIcon} 
-                                                                    alt="Edit" 
-                                                                    onClick={() => handleEditActivite(activite.idActivite)} 
-                                                                    style={{ cursor: 'pointer', width: '20px', height: '20px', marginRight: '10px' }} 
-                                                                />
-                                                                <img 
-                                                                    src={deleteIcon} 
-                                                                    alt="Delete" 
-                                                                    onClick={() => handleDeleteActivite(activite.idActivite)} 
-                                                                    style={{ cursor: 'pointer', width: '20px', height: '20px' }} 
-                                                                />
-                                                            </td>
-                                                        )}
-                                                    </tr>
-                                                ))}
+                                                {filteredActivites.map((activite) => {
+                                                    console.log('Affichage de l\'activité:', activite);
+                                                    return (
+                                                        <tr key={activite._id || activite.idActivite}>
+                                                            <td>{activite.libelleActivite}</td>
+                                                            <td>{activite.description}</td>
+                                                            <td>{activite.lieu}</td>
+                                                            <td>{formatDate(activite.date)}</td>
+                                                            {user.admin === 1 && ( 
+                                                                <td>
+                                                                    <img 
+                                                                        src={editIcon} 
+                                                                        alt="Edit" 
+                                                                        onClick={() => handleEditActivite(activite._id || activite.idActivite)} 
+                                                                        style={{ cursor: 'pointer', width: '20px', height: '20px', marginRight: '10px' }} 
+                                                                    />
+                                                                    <img 
+                                                                        src={deleteIcon} 
+                                                                        alt="Delete" 
+                                                                        onClick={() => handleDeleteActivite(activite._id || activite.idActivite)} 
+                                                                        style={{ cursor: 'pointer', width: '20px', height: '20px' }} 
+                                                                    />
+                                                                </td>
+                                                            )}
+                                                        </tr>
+                                                    );
+                                                })}
                                             </tbody>
                                         </table>
                                         {user.admin === 1 && ( 

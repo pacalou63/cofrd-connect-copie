@@ -42,7 +42,7 @@ export const Signup = ({ onSignupSuccess, onBackToLogin }) => {
             };
             console.log('Envoi des données:', userData);
             
-            const response = await fetch('https://cofrd-connect-backend.vercel.app/api/users', {
+            const response = await fetch('http://localhost:3001/api/users', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

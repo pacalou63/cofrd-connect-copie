@@ -20,7 +20,6 @@ export const ModalEdit = ({ isOpen, onClose, onSubmit, editingActivite, setEditi
                                 ...editingActivite,
                                 libelleActivite: e.target.value
                             })}
-                            required
                         />
                     </div>
                     <div className="form-group">
@@ -31,7 +30,6 @@ export const ModalEdit = ({ isOpen, onClose, onSubmit, editingActivite, setEditi
                                 ...editingActivite,
                                 description: e.target.value
                             })}
-                            required
                         />
                     </div>
                     <div className="form-group">
@@ -43,7 +41,6 @@ export const ModalEdit = ({ isOpen, onClose, onSubmit, editingActivite, setEditi
                                 ...editingActivite,
                                 lieu: e.target.value
                             })}
-                            required
                         />
                     </div>
                     <div className="form-group">
@@ -55,7 +52,6 @@ export const ModalEdit = ({ isOpen, onClose, onSubmit, editingActivite, setEditi
                                 ...editingActivite,
                                 date: e.target.value
                             })}
-                            required
                         />
                     </div>
                     <div className="form-buttons">

@@ -13,7 +13,7 @@ import logoutLogo from '../img/logout.png';
 import petitPoints from '../img/more.png';
 import dashboard from '../img/dashboard.png';
 import messageIcon from '../img/message.png';
-import { fetchActivites, createActivite, updateActivite as updateActiviteApi, deleteActivite as deleteActiviteApi, fetchUsers, deleteUser as deleteUserApi } from '../services/api';
+import { fetchActivites, createActivite, updateActivite as updateActiviteApi, deleteActivite as deleteActiviteApi, fetchUsers, deleteUser as deleteUserApi, createUser } from '../services/api';
 import Messagerie from './messagerie';
 
 const UsersView = ({ user, onLogout }) => {
@@ -26,6 +26,18 @@ const UsersView = ({ user, onLogout }) => {
     const [showAddForm, setShowAddForm] = useState(false);
     const [users, setUsers] = useState([]);
     const [showMessagerie, setShowMessagerie] = useState(false);
+    
+    // États pour le modal de création d'utilisateur
+    const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+    const [newUser, setNewUser] = useState({
+        username: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        admin: 0
+    });
+    const [showPassword, setShowPassword] = useState(false);
+    const [error, setError] = useState('');
 
     useEffect(() => {
         const loadUsers = async () => {
@@ -54,21 +66,60 @@ const UsersView = ({ user, onLogout }) => {
     }
 
     const handleDeleteUser = async (id) => {
-        const userToDelete = users.find(user => user.id === id);
-        if (userToDelete.admin === 1 && userToDelete.id !== user.id) {
-            alert('Vous ne pouvez pas supprimer un administrateur.');
-            return;
-        }
-        if (userToDelete.id === user.id) {
-            alert('Vous ne pouvez pas vous supprimer vous-même.');
-            return;
-        }
-
-        const result = await deleteUserApi(id);
-        if (result && result.success) {
-            setUsers(users.filter(user => user.id !== id));
-        } else {
-            alert('Erreur lors de la suppression de l\'utilisateur');
+        try {
+            console.log('UsersView - Tentative de suppression de l\'utilisateur avec ID:', id);
+            
+            // Trouver l'utilisateur à supprimer
+            const userToDelete = users.find(user => user._id === id || user.id === id);
+            console.log('UsersView - Utilisateur à supprimer:', userToDelete);
+            
+            if (!userToDelete) {
+                alert('Utilisateur non trouvé.');
+                return;
+            }
+            
+            // Vérifier si l'utilisateur est un administrateur
+            if (userToDelete.admin === 1 && (userToDelete._id !== user._id && userToDelete.id !== user.id)) {
+                alert('Vous ne pouvez pas supprimer un administrateur.');
+                return;
+            }
+            
+            // Vérifier si l'utilisateur essaie de se supprimer lui-même
+            if ((userToDelete._id === user._id) || (userToDelete.id === user.id)) {
+                alert('Vous ne pouvez pas vous supprimer vous-même.');
+                return;
+            }
+            
+            // Demander confirmation avant de supprimer
+            if (!window.confirm(`Êtes-vous sûr de vouloir supprimer l'utilisateur ${userToDelete.username} ?`)) {
+                return;
+            }
+            
+            // Utiliser _id s'il existe, sinon utiliser id
+            const idToDelete = userToDelete._id || userToDelete.id;
+            console.log('UsersView - ID à utiliser pour la suppression:', idToDelete);
+            
+            const result = await deleteUserApi(idToDelete);
+            console.log('UsersView - Résultat de la suppression:', result);
+            
+            if (result && result.success) {
+                // Filtrer les utilisateurs en utilisant l'ID approprié
+                const updatedUsers = users.filter(u => {
+                    if (userToDelete._id) {
+                        return u._id !== userToDelete._id;
+                    }
+                    return u.id !== userToDelete.id;
+                });
+                
+                console.log('UsersView - Utilisateurs après suppression:', updatedUsers);
+                setUsers(updatedUsers);
+                alert('Utilisateur supprimé avec succès.');
+            } else {
+                throw new Error(result?.error || 'Erreur lors de la suppression de l\'utilisateur');
+            }
+        } catch (error) {
+            console.error('UsersView - Erreur lors de la suppression de l\'utilisateur:', error);
+            alert(`Erreur lors de la suppression de l\'utilisateur: ${error.message}`);
         }
     };
 
@@ -79,6 +130,98 @@ const UsersView = ({ user, onLogout }) => {
             onLogout();
         }
         window.location.reload();
+    };
+
+    const isValidEmail = (email) => {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    };
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setNewUser({
+            ...newUser,
+            [name]: value
+        });
+
+        // Réinitialiser l'erreur si l'email est valide ou vide
+        if (name === 'email' && (isValidEmail(value) || value === '')) {
+            setError('');
+        }
+    };
+
+    const handleAdminChange = (e) => {
+        setNewUser({
+            ...newUser,
+            admin: e.target.checked ? 1 : 0
+        });
+    };
+
+    const handleCreateUser = async (e) => {
+        e.preventDefault();
+        
+        // Validation des champs
+        if (newUser.password !== newUser.confirmPassword) {
+            setError('Les mots de passe ne correspondent pas');
+            return;
+        }
+
+        if (!newUser.password || !newUser.username || !newUser.email) {
+            setError('Veuillez remplir tous les champs obligatoires');
+            return;
+        }
+
+        if (!isValidEmail(newUser.email)) {
+            setError('Veuillez entrer une adresse email valide');
+            return;
+        }
+
+        try {
+            // Préparer les données à envoyer (sans confirmPassword)
+            const userData = {
+                username: newUser.username,
+                email: newUser.email,
+                password: newUser.password,
+                admin: newUser.admin
+            };
+
+            const result = await createUser(userData);
+            
+            if (result && !result.error) {
+                // Vérifier si le résultat contient un utilisateur
+                const newUserData = result.user || result;
+                
+                // Ajouter le nouvel utilisateur à la liste avec un ID approprié
+                const userToAdd = {
+                    ...userData,
+                    _id: newUserData._id || newUserData.id || Date.now().toString(),
+                    id: newUserData.id || newUserData._id || Date.now().toString(),
+                    username: newUserData.username || userData.username,
+                    email: newUserData.email || userData.email,
+                    admin: newUserData.admin !== undefined ? newUserData.admin : userData.admin
+                };
+                
+                setUsers([...users, userToAdd]);
+                
+                // Réinitialiser le formulaire et fermer le modal
+                setNewUser({
+                    username: '',
+                    email: '',
+                    password: '',
+                    confirmPassword: '',
+                    admin: 0
+                });
+                setShowCreateUserModal(false);
+                setError('');
+                
+                alert('Utilisateur créé avec succès');
+            } else {
+                throw new Error(result.error || 'Erreur lors de la création de l\'utilisateur');
+            }
+        } catch (error) {
+            console.error('Erreur lors de la création de l\'utilisateur:', error);
+            setError(error.message || 'Une erreur est survenue lors de la création de l\'utilisateur');
+        }
     };
 
     return (
@@ -119,7 +262,6 @@ const UsersView = ({ user, onLogout }) => {
                                         <div className='user-container'>
                                             <div className='logout-users' onClick={handleLogout}>
                                                 <img src={logoutLogo} alt='logout'/>
-                                                <h2 className='logout-logo-text'>Se déconnecter</h2>
                                             </div>
                                         </div>
                                     )}
@@ -168,7 +310,7 @@ const UsersView = ({ user, onLogout }) => {
                                 <div className='users-table'>
                                     <table>
                                         <thead>
-                                            <tr>
+                                            <tr key="header-row">
                                                 <th>Nom d'utilisateur</th>
                                                 <th>Email</th>
                                                 <th>Rôle</th>
@@ -183,7 +325,7 @@ const UsersView = ({ user, onLogout }) => {
                                         </thead>
                                         <tbody>
                                             {users.map((userItem) => (
-                                                <tr key={userItem.id}>
+                                                <tr key={userItem._id || userItem.id}>
                                                     <td>{userItem.username}</td>
                                                     <td>{userItem.email}</td>
                                                     <td>{userItem.admin === 1 ? 'Administrateur' : 'Utilisateur'}</td>
@@ -194,11 +336,11 @@ const UsersView = ({ user, onLogout }) => {
                                                             maxWidth: '40px',
                                                             padding: '0 10px'
                                                         }}>
-                                                            {(userItem.admin !== 1 || userItem.id === user.id) && (
+                                                            {(userItem.admin !== 1 || ((userItem._id === user._id) || (userItem.id === user.id))) && (
                                                                 <img 
                                                                     src={deleteIcon} 
                                                                     alt="Delete" 
-                                                                    onClick={() => handleDeleteUser(userItem.id)} 
+                                                                    onClick={() => handleDeleteUser(userItem._id || userItem.id)} 
                                                                     style={{ 
                                                                         cursor: 'pointer', 
                                                                         width: '20px', 
@@ -219,7 +361,7 @@ const UsersView = ({ user, onLogout }) => {
                                             <img 
                                                 src={plusIcon} 
                                                 alt="Add" 
-                                                onClick={() => setShowAddForm(true)} 
+                                                onClick={() => setShowCreateUserModal(true)} 
                                                 style={{ cursor: 'pointer', width: '20px', height: '20px', marginRight: '10px', marginTop: '10px' }} 
                                             />
                                         </div>
@@ -227,6 +369,78 @@ const UsersView = ({ user, onLogout }) => {
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
+            {showCreateUserModal && (
+                <div className="modal-overlay">
+                    <div className="create-user-modal">
+                        <div className="modal-header">
+                            <h2>Créer un nouvel utilisateur</h2>
+                            <button onClick={() => setShowCreateUserModal(false)} className="close-modal">×</button>
+                        </div>
+                        {error && <div className="error-message">{error}</div>}
+                        <form onSubmit={handleCreateUser}>
+                            <div className="form-group">
+                                <input 
+                                    type="text" 
+                                    name="username" 
+                                    value={newUser.username} 
+                                    onChange={handleInputChange} 
+                                    placeholder="Nom d'utilisateur"
+                                />
+                                <span className="bar"></span>
+                            </div>
+                            <div className="form-group">
+                                <input 
+                                    type="email" 
+                                    name="email" 
+                                    value={newUser.email} 
+                                    onChange={handleInputChange} 
+                                    placeholder="Email"
+                                    className={newUser.email && !isValidEmail(newUser.email) ? 'invalid' : ''}
+                                />
+                                <span className="bar"></span>
+                            </div>
+                            <div className="form-group password-group">
+                                <input 
+                                    type={showPassword ? 'text' : 'password'} 
+                                    name="password" 
+                                    value={newUser.password} 
+                                    onChange={handleInputChange} 
+                                    placeholder="Mot de passe"
+                                />
+                                <span className="bar"></span>
+                                <span className="password-toggle" onClick={() => setShowPassword(!showPassword)}>
+                                    {showPassword ? '👁️' : '👁️‍🗨️'}
+                                </span>
+                            </div>
+                            <div className="form-group">
+                                <input 
+                                    type={showPassword ? 'text' : 'password'} 
+                                    name="confirmPassword" 
+                                    value={newUser.confirmPassword} 
+                                    onChange={handleInputChange} 
+                                    placeholder="Confirmer mot de passe"
+                                />
+                                <span className="bar"></span>
+                            </div>
+                            <div className="form-group admin-checkbox">
+                                <label>
+                                    <input 
+                                        type="checkbox" 
+                                        name="admin" 
+                                        checked={newUser.admin === 1} 
+                                        onChange={handleAdminChange} 
+                                    />
+                                    Administrateur
+                                </label>
+                            </div>
+                            <div className="form-buttons">
+                                <button type="submit" className="create-button">Créer</button>
+                                <button type="button" className="cancel-button" onClick={() => setShowCreateUserModal(false)}>Annuler</button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

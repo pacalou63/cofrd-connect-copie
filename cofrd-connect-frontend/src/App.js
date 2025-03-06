@@ -19,22 +19,40 @@ function App() {
   const [showMessagerie, setShowMessagerie] = useState(false);
   
   useEffect(() => {
-    // Nettoyer le localStorage quand la page est fermée
-    const handleBeforeUnload = () => {
-      localStorage.removeItem('currentUser');
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
+    // Vérifier si l'utilisateur est déjà connecté au chargement
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser);
+        setIsLoggedIn(true);
+        setCurrentUser(user);
+        setShowDashboard(true); // Rediriger vers le dashboard
+      } catch (error) {
+        console.error('Erreur lors de la restauration de l\'utilisateur:', error);
+        localStorage.removeItem('currentUser');
+      }
+    }
   }, []);
 
   const handleLoginSuccess = (user) => {
+    // S'assurer que l'utilisateur a un ID valide
+    if (!user || (!user.id && !user._id)) {
+      console.error('Utilisateur invalide:', user);
+      return;
+    }
+
+    const userToStore = {
+      id: user.id || user._id, // Utiliser id ou _id
+      username: user.username,
+      email: user.email,
+      admin: user.admin,
+    };
+
+    console.log('Utilisateur connecté:', userToStore);
     setIsLoggedIn(true);
-    setCurrentUser(user);
-    localStorage.setItem('currentUser', JSON.stringify(user));
+    setCurrentUser(userToStore);
+    setShowDashboard(true); // Rediriger vers le dashboard
+    localStorage.setItem('currentUser', JSON.stringify(userToStore));
   };
 
   const handleLogout = () => {

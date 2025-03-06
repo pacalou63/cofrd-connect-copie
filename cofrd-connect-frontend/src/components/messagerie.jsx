@@ -12,8 +12,56 @@ import petitPoints from '../img/more.png';
 import allUsers from '../img/profile.png';
 import dashboard from '../img/dashboard.png';
 import messageIcon from '../img/message.png';
-import { fetchUsers, saveMessages, loadMessages } from '../services/api';
+import { fetchUsers, loadMessages, saveMessages } from '../services/api';
 import io from 'socket.io-client';
+
+// Fonction utilitaire pour formater la date selon les critères spécifiés
+const formatDate = (timestamp) => {
+    // Si la date est déjà formatée, la retourner telle quelle
+    if (typeof timestamp === 'string' && !timestamp.includes('T') && !timestamp.includes('-')) {
+        return timestamp;
+    }
+    
+    const messageDate = new Date(timestamp);
+    const now = new Date();
+    
+    // Formater l'heure (HH:MM)
+    const hours = messageDate.getHours().toString().padStart(2, '0');
+    const minutes = messageDate.getMinutes().toString().padStart(2, '0');
+    const timeString = `${hours}:${minutes}`;
+    
+    // Vérifier si c'est aujourd'hui
+    if (messageDate.toDateString() === now.toDateString()) {
+        return timeString;
+    }
+    
+    // Vérifier si c'est hier
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (messageDate.toDateString() === yesterday.toDateString()) {
+        return `Hier, ${timeString}`;
+    }
+    
+    // Vérifier si c'est avant-hier
+    const twoDaysAgo = new Date(now);
+    twoDaysAgo.setDate(now.getDate() - 2);
+    if (messageDate.toDateString() === twoDaysAgo.toDateString()) {
+        return `Avant-hier, ${timeString}`;
+    }
+    
+    // Vérifier si c'est cette année
+    if (messageDate.getFullYear() === now.getFullYear()) {
+        const day = messageDate.getDate().toString().padStart(2, '0');
+        const month = (messageDate.getMonth() + 1).toString().padStart(2, '0');
+        return `${day}/${month}, ${timeString}`;
+    }
+    
+    // Si c'est une année différente
+    const day = messageDate.getDate().toString().padStart(2, '0');
+    const month = (messageDate.getMonth() + 1).toString().padStart(2, '0');
+    const year = messageDate.getFullYear();
+    return `${day}/${month}/${year}`;
+};
 
 const Messagerie = ({ user, onLogout }) => {
     const [showMain, setShowMain] = useState(false);
@@ -28,143 +76,241 @@ const Messagerie = ({ user, onLogout }) => {
     const socketRef = useRef();
     const [unreadMessages, setUnreadMessages] = useState({});  // { userId: count }
     const [totalUnreadMessages, setTotalUnreadMessages] = useState(0);
+    const [processedMessageIds, setProcessedMessageIds] = useState(new Set());
+
+    // Vérifier si l'utilisateur est connecté au chargement
+    useEffect(() => {
+        if (!user) {
+            const savedUser = localStorage.getItem('currentUser');
+            if (savedUser) {
+                try {
+                    const parsedUser = JSON.parse(savedUser);
+                    if (!parsedUser || !parsedUser.id) {
+                        console.error('Utilisateur invalide dans le localStorage');
+                        localStorage.removeItem('currentUser');
+                        if (onLogout) onLogout();
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Erreur lors de la lecture de l\'utilisateur:', error);
+                    localStorage.removeItem('currentUser');
+                    if (onLogout) onLogout();
+                    return;
+                }
+            } else {
+                console.log('Pas d\'utilisateur connecté');
+                if (onLogout) onLogout();
+                return;
+            }
+        }
+    }, [user, onLogout]);
 
     useEffect(() => {
         const loadUsers = async () => {
-            const fetchedUsers = await fetchUsers();
-            // Filtrer l'utilisateur actuel de la liste
-            const otherUsers = fetchedUsers.filter(u => u.id !== user.id);
-            setUsers(otherUsers);
+            if (!user || !user.id) return;
+            
+            try {
+                const fetchedUsers = await fetchUsers();
+                // Filtrer l'utilisateur actuel de la liste
+                const otherUsers = fetchedUsers.filter(u => u.id !== user.id);
+                setUsers(otherUsers);
+            } catch (error) {
+                console.error('Erreur lors du chargement des utilisateurs:', error);
+            }
         };
         loadUsers();
-    }, [user.id]);
+    }, [user]);
 
     useEffect(() => {
-        console.log('Connecting socket for user:', user.id);
-        socketRef.current = io('https://cofrd-connect-backend.vercel.app');
+        if (!user || !user.id) {
+            console.log('Pas d\'utilisateur connecté');
+            return;
+        }
 
+        const socketUrl = process.env.NODE_ENV === 'production' 
+            ? 'https://cofrd-connect-backend.vercel.app' 
+            : 'http://localhost:3001';
+        
+        console.log('Connecting socket for user:', user.id);
+        socketRef.current = io(socketUrl, {
+            query: { userId: user.id }
+        });
         socketRef.current.emit('login', user.id);
 
-        const handlePrivateMessage = ({ from, message }) => {
-            console.log('Socket received message:', { from, message, currentUser: user.id });
+        const handlePrivateMessage = ({ from, message, id }) => {
+            console.log('Message reçu via socket:', { from, message, id });
+            
+            // Si l'ID du message n'est pas défini, on en génère un
+            const messageId = id || `msg_${from}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            
+            // Vérifier si le message a déjà été traité
+            if (processedMessageIds.has(messageId)) {
+                console.log('Message déjà traité, ignoré:', messageId);
+                return;
+            }
+            
+            // Marquer le message comme traité
+            setProcessedMessageIds(prev => new Set([...prev, messageId]));
+
+            // Si le message vient d'un autre utilisateur, incrémenter les compteurs
             if (from !== user.id) {
-                // Incrémenter le compteur de messages non lus
+                console.log('Message reçu d\'un autre utilisateur:', from);
                 setUnreadMessages(prev => ({
                     ...prev,
                     [from]: (prev[from] || 0) + 1
                 }));
-                
-                console.log('Processing received message from other user');
-                setConversations(prevConversations => {
-                    const conversationIndex = prevConversations.findIndex(
-                        conv => conv.user?.id === from
-                    );
-                    
-                    const messageId = `${from}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                    const newMessage = {
-                        id: messageId,
-                        sender: from,
-                        text: message,
-                        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                    };
-
-                    const updatedConversations = [...prevConversations];
-                    if (conversationIndex > -1) {
-                        updatedConversations[conversationIndex] = {
-                            ...updatedConversations[conversationIndex],
-                            messages: [...updatedConversations[conversationIndex].messages, newMessage]
-                        };
-                    } else {
-                        const sender = users.find(u => u.id === from);
-                        if (sender) {
-                            updatedConversations.push({
-                                id: `conv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                                user: sender,
-                                messages: [newMessage]
-                            });
-                        }
-                    }
-                    return updatedConversations;
-                });
+                setTotalUnreadMessages(prev => prev + 1);
+            } else {
+                console.log('Message reçu de moi-même, pas d\'incrémentation des compteurs');
             }
+
+            const formattedDate = formatDate(new Date());
+
+            setConversations(prev => {
+                const newConversations = [...prev];
+                
+                // Rechercher la conversation en tenant compte des deux formats d'ID possibles
+                const conversation = newConversations.find(
+                    c => c.user && (c.user.id === from || c.user._id === from || c.from === from)
+                );
+
+                // Vérifier si le message existe déjà dans la conversation
+                const messageExists = conversation && conversation.messages.some(m => m.id === messageId);
+                if (messageExists) {
+                    console.log('Message déjà présent dans la conversation, ignoré:', messageId);
+                    return prev; // Retourner l'état précédent sans modification
+                }
+
+                const newMessage = {
+                    id: messageId,
+                    from,
+                    message,
+                    timestamp: formattedDate
+                };
+
+                if (conversation) {
+                    // Vérifier si le message existe déjà dans la conversation
+                    if (!conversation.messages.some(m => m.id === messageId)) {
+                        conversation.messages.push(newMessage);
+                    }
+                } else {
+                    // Trouver l'utilisateur correspondant
+                    const fromUser = users.find(u => u.id === from || u._id === from);
+                    // S'assurer que l'utilisateur a un ID normalisé
+                    const normalizedUser = fromUser ? {
+                        ...fromUser,
+                        id: fromUser.id || fromUser._id
+                    } : { id: from, username: 'Utilisateur inconnu' };
+                    
+                    newConversations.push({
+                        from,
+                        to: user.id,
+                        user: normalizedUser,
+                        messages: [newMessage]
+                    });
+                }
+
+                return newConversations;
+            });
         };
 
         socketRef.current.on('private message', handlePrivateMessage);
 
         return () => {
-            socketRef.current.off('private message', handlePrivateMessage);
-            socketRef.current.disconnect();
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+            }
         };
-    }, [user.id, users]);
+    }, [user, users, setUnreadMessages, setTotalUnreadMessages, setConversations]);
 
-    // Charger l'historique des messages au démarrage
     useEffect(() => {
-        const loadMessages = async () => {
+        const total = Object.values(unreadMessages).reduce((sum, count) => sum + count, 0);
+        setTotalUnreadMessages(total);
+    }, [unreadMessages, setTotalUnreadMessages]);
+
+    useEffect(() => {
+        const loadInitialMessages = async () => {
+            if (!user || !user.id) {
+                console.log('Pas d\'utilisateur connecté pour charger les messages');
+                return;
+            }
+
             try {
-                const response = await fetch(`https://cofrd-connect-backend.vercel.app/api/messages/${user.id}`);
-                if (!response.ok) {
-                    throw new Error('Erreur lors du chargement des messages');
-                }
-                const messages = await response.json();
+                console.log('Chargement des messages pour l\'utilisateur:', user.id);
+                const messages = await loadMessages(user.id);
                 console.log('Messages chargés:', messages);
                 
                 if (Array.isArray(messages)) {
-                    // Organiser les messages par conversation
-                    const messagesByConversation = messages.reduce((acc, msg) => {
-                        const otherId = msg.from === user.id ? msg.to : msg.from;
-                        if (!acc[otherId]) {
-                            acc[otherId] = [];
-                        }
-                        acc[otherId].push({
-                            id: msg.id,
-                            sender: msg.from,
-                            text: msg.text,
-                            timestamp: new Date(msg.timestamp).toLocaleTimeString([], { 
-                                hour: '2-digit', 
-                                minute: '2-digit' 
-                            })
-                        });
-                        return acc;
-                    }, {});
-
-                    // Créer les conversations
-                    const newConversations = Object.entries(messagesByConversation)
-                        .map(([userId, messages]) => {
-                            const otherUser = users.find(u => u.id === parseInt(userId));
-                            if (otherUser) {
-                                return {
-                                    id: `conv-${userId}`,
-                                    user: otherUser,
-                                    messages: messages
-                                };
+                    // Vider l'ensemble des IDs de messages traités pour éviter les conflits
+                    setProcessedMessageIds(new Set());
+                    
+                    // Chargement des utilisateurs pour enrichir les conversations
+                    const allUsers = await fetchUsers();
+                    console.log('Utilisateurs chargés pour enrichir les conversations:', allUsers.length);
+                    
+                    // Transformer les conversations pour inclure les informations utilisateur
+                    const enrichedConversations = messages.map(conv => {
+                        // Déterminer l'autre utilisateur dans la conversation
+                        const otherUserId = conv.from === user.id ? conv.to : conv.from;
+                        console.log('Recherche de l\'utilisateur:', otherUserId);
+                        
+                        const otherUser = allUsers.find(u => u.id === otherUserId || u._id === otherUserId);
+                        console.log('Utilisateur trouvé:', otherUser ? otherUser.username : 'Non trouvé');
+                        
+                        // S'assurer que l'utilisateur a un ID normalisé
+                        const normalizedUser = otherUser ? {
+                            ...otherUser,
+                            id: otherUser.id || otherUser._id
+                        } : { id: otherUserId, username: 'Utilisateur inconnu' };
+                        
+                        // Formater les dates des messages et s'assurer que chaque message a un ID
+                        const messagesWithFormattedDates = conv.messages.map(msg => {
+                            let timestamp = msg.timestamp;
+                            
+                            // Si la date est au format ISO, la convertir
+                            if (timestamp && timestamp.includes('T')) {
+                                timestamp = formatDate(new Date(timestamp));
                             }
-                            return null;
-                        })
-                        .filter(conv => conv !== null);
-
-                    console.log('Conversations créées:', newConversations);
-                    setConversations(newConversations);
+                            
+                            // S'assurer que chaque message a un ID
+                            const messageId = msg.id || `msg_${msg.from}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                            
+                            // Marquer ce message comme déjà traité pour éviter les doublons
+                            setProcessedMessageIds(prev => new Set([...prev, messageId]));
+                            
+                            return {
+                                ...msg,
+                                id: messageId,
+                                timestamp
+                            };
+                        });
+                        
+                        // Dédupliquer les messages par ID
+                        const uniqueMessages = messagesWithFormattedDates.filter(
+                            (msg, index, self) => {
+                                // Trouver le premier message avec cet ID
+                                const firstIndex = self.findIndex(m => m.id === msg.id);
+                                // Ne garder que la première occurrence
+                                return index === firstIndex;
+                            }
+                        );
+                        
+                        return {
+                            ...conv,
+                            messages: uniqueMessages,
+                            user: normalizedUser
+                        };
+                    });
+                    
+                    setConversations(enrichedConversations);
                 }
             } catch (error) {
                 console.error('Erreur lors du chargement des messages:', error);
             }
         };
 
-        if (users.length > 0) {
-            loadMessages();
-        }
-    }, [user.id, users]);
-
-    // Sauvegarder les conversations quand elles changent
-    useEffect(() => {
-        saveMessages(conversations);
-    }, [conversations]);
-
-    // Mettre à jour le total des messages non lus quand unreadMessages change
-    useEffect(() => {
-        const total = Object.values(unreadMessages).reduce((sum, count) => sum + count, 0);
-        setTotalUnreadMessages(total);
-    }, [unreadMessages]);
+        loadInitialMessages();
+    }, [user, setConversations]);
 
     const toggleUserInfo = () => {
         setShowUserInfo(!showUserInfo);
@@ -184,6 +330,9 @@ const Messagerie = ({ user, onLogout }) => {
 
     const handleLogout = () => {
         console.log("Tentative de déconnexion");
+        if (socketRef.current) {
+            socketRef.current.disconnect();
+        }
         localStorage.removeItem('currentUser');
         if (onLogout) {
             onLogout();
@@ -191,56 +340,134 @@ const Messagerie = ({ user, onLogout }) => {
         window.location.reload();
     };
 
-    const handleSendMessage = (e) => {
-        e.preventDefault();
-        if (message.trim() && selectedUser) {
-            const newMessage = {
-                id: `${user.id}-${Date.now()}`,
-                sender: user.id,
-                text: message,
-                timestamp: new Date().toLocaleTimeString([], { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                })
-            };
+    const handleSendMessage = async () => {
+        if (!message.trim() || !selectedUser || !user) return;
 
-            socketRef.current.emit('private message', {
+        try {
+            const messageText = message.trim();
+            
+            // S'assurer que selectedUser a un ID valide
+            if (!selectedUser.id && !selectedUser._id) {
+                console.error('ID de destinataire manquant', selectedUser);
+                return;
+            }
+            
+            // Utiliser l'ID correct (id ou _id)
+            const recipientId = selectedUser.id || selectedUser._id;
+            
+            // Générer un ID unique pour ce message
+            const messageId = `msg_${user.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            
+            // Marquer le message comme déjà traité pour éviter les doublons
+            setProcessedMessageIds(prev => new Set([...prev, messageId]));
+            
+            console.log('Envoi du message:', {
+                id: messageId,
+                to: recipientId,
                 from: user.id,
-                to: selectedUser.id,
-                message: message
+                message: messageText
             });
 
-            setConversations(prevConversations => {
-                const conversationIndex = prevConversations.findIndex(
-                    conv => conv.user.id === selectedUser.id
+            const formattedDate = formatDate(new Date());
+
+            // Sauvegarder le message dans la base de données AVANT de l'ajouter localement
+            let savedMessageId = messageId;
+            try {
+                const savedMessage = await saveMessages({
+                    id: messageId,
+                    from: user.id,
+                    to: recipientId,
+                    text: messageText
+                });
+                console.log('Message sauvegardé avec succès:', savedMessage);
+                
+                // Si le backend a généré un nouvel ID, l'utiliser
+                if (savedMessage && savedMessage._id) {
+                    savedMessageId = savedMessage._id.toString();
+                    console.log('Utilisation de l\'ID généré par le backend:', savedMessageId);
+                }
+            } catch (saveError) {
+                console.error('Erreur lors de la sauvegarde du message:', saveError);
+                // Continuer même si la sauvegarde échoue
+            }
+
+            // Mettre à jour les conversations localement avec l'ID correct
+            setConversations(prev => {
+                const newConversations = [...prev];
+                const conversation = newConversations.find(
+                    c => c.user && (c.user.id === recipientId || c.user._id === recipientId)
                 );
 
-                const updatedConversations = [...prevConversations];
-                if (conversationIndex > -1) {
-                    updatedConversations[conversationIndex] = {
-                        ...updatedConversations[conversationIndex],
-                        messages: [...updatedConversations[conversationIndex].messages, newMessage]
-                    };
+                const newMessage = {
+                    id: savedMessageId, // Utiliser l'ID du message sauvegardé
+                    from: user.id,
+                    message: messageText,
+                    timestamp: formattedDate
+                };
+
+                if (conversation) {
+                    // Vérifier si le message existe déjà dans la conversation
+                    if (!conversation.messages.some(m => m.id === savedMessageId)) {
+                        conversation.messages.push(newMessage);
+                    }
                 } else {
-                    updatedConversations.push({
-                        id: `conv-${selectedUser.id}`,
+                    newConversations.push({
+                        from: user.id,
+                        to: recipientId,
                         user: selectedUser,
                         messages: [newMessage]
                     });
                 }
-                return updatedConversations;
+
+                return newConversations;
             });
 
+            // Envoyer via socket APRÈS avoir mis à jour l'état local
+            // pour éviter le double envoi
+            if (socketRef.current) {
+                // Éviter d'envoyer le message à soi-même via socket.io
+                // car il est déjà ajouté localement
+                if (recipientId !== user.id) {
+                    socketRef.current.emit('private message', {
+                        id: savedMessageId,
+                        to: recipientId,
+                        from: user.id,
+                        message: messageText
+                    });
+                }
+            } else {
+                console.error('Socket non connecté');
+            }
+
             setMessage('');
+        } catch (error) {
+            console.error('Erreur lors de l\'envoi du message:', error);
         }
     };
 
     const handleConversationClick = (otherUser) => {
-        setSelectedUser(otherUser);
+        // S'assurer que otherUser a un ID valide
+        if (!otherUser || (!otherUser.id && !otherUser._id)) {
+            console.error('Utilisateur invalide:', otherUser);
+            return;
+        }
+        
+        // Normaliser l'ID de l'utilisateur (utiliser _id si id n'existe pas)
+        const userId = otherUser.id || otherUser._id;
+        
+        // Créer une copie normalisée de l'utilisateur avec un ID garanti
+        const normalizedUser = {
+            ...otherUser,
+            id: userId
+        };
+        
+        // Mettre à jour l'utilisateur sélectionné
+        setSelectedUser(normalizedUser);
+        
         // Réinitialiser le compteur de messages non lus pour cet utilisateur
         setUnreadMessages(prev => ({
             ...prev,
-            [otherUser.id]: 0
+            [userId]: 0
         }));
     };
 
@@ -249,16 +476,37 @@ const Messagerie = ({ user, onLogout }) => {
     };
 
     const startNewConversation = (newUser) => {
-        setSelectedUser(newUser);
+        // S'assurer que newUser a un ID valide
+        if (!newUser || (!newUser.id && !newUser._id)) {
+            console.error('Utilisateur invalide:', newUser);
+            return;
+        }
+        
+        // Normaliser l'ID de l'utilisateur (utiliser _id si id n'existe pas)
+        const userId = newUser.id || newUser._id;
+        
+        // Créer une copie normalisée de l'utilisateur avec un ID garanti
+        const normalizedUser = {
+            ...newUser,
+            id: userId
+        };
+        
+        // Mettre à jour l'utilisateur sélectionné
+        setSelectedUser(normalizedUser);
         setShowAllUsers(false);
         
         // Vérifier si une conversation existe déjà
-        const existingConv = conversations.find(conv => conv.user.id === newUser.id);
+        const existingConv = conversations.find(conv => 
+            conv.user && (conv.user.id === userId || conv.user._id === userId)
+        );
+        
         if (!existingConv) {
             // Créer une nouvelle conversation vide
             const newConversation = {
-                id: `conv-${newUser.id}-${Date.now()}`,
-                user: newUser,
+                id: `conv-${userId}-${Date.now()}`,
+                from: user.id,
+                to: userId,
+                user: normalizedUser,
                 messages: []
             };
             setConversations([...conversations, newConversation]);
@@ -359,8 +607,8 @@ const Messagerie = ({ user, onLogout }) => {
                                     {conversations.map(conversation => (
                                         <div 
                                             key={conversation.id} 
-                                            className={`contact-item ${selectedUser?.id === conversation.user.id ? 'selected' : ''}`}
-                                            onClick={() => setSelectedUser(conversation.user)}
+                                            className={`contact-item ${selectedUser?.id === conversation.user?.id ? 'selected' : ''}`}
+                                            onClick={() => handleConversationClick(conversation.user)}
                                         >
                                             <div className='contact-avatar'>
                                                 <img src={userLogo} alt={conversation.user.username} />
@@ -374,8 +622,8 @@ const Messagerie = ({ user, onLogout }) => {
                                                 <h3>{conversation.user.username}</h3>
                                                 {conversation.messages.length > 0 && (
                                                     <p className='last-message'>
-                                                        {conversation.messages[conversation.messages.length - 1].text.substring(0, 30)}
-                                                        {conversation.messages[conversation.messages.length - 1].text.length > 30 ? '...' : ''}
+                                                        {conversation.messages[conversation.messages.length - 1].message.substring(0, 30)}
+                                                        {conversation.messages[conversation.messages.length - 1].message.length > 30 ? '...' : ''}
                                                     </p>
                                                 )}
                                             </div>
@@ -420,18 +668,26 @@ const Messagerie = ({ user, onLogout }) => {
                                         <div className='messages-container'>
                                             {conversations
                                                 .find(conv => conv.user.id === selectedUser.id)
-                                                ?.messages.map(msg => (
+                                                ?.messages
+                                                // Filtrer les messages dupliqués par ID de manière plus stricte
+                                                .filter((msg, index, self) => {
+                                                    // Trouver le premier message avec cet ID
+                                                    const firstIndex = self.findIndex(m => m.id === msg.id);
+                                                    // Ne garder que la première occurrence
+                                                    return index === firstIndex;
+                                                })
+                                                .map(msg => (
                                                     <div 
                                                         key={msg.id} 
-                                                        className={`message ${msg.sender === user.id ? 'sent' : 'received'}`}
+                                                        className={`message ${msg.from === user.id ? 'sent' : 'received'}`}
                                                     >
-                                                        <p>{msg.text}</p>
+                                                        <p>{msg.message}</p>
                                                         <span className='timestamp'>{msg.timestamp}</span>
                                                     </div>
                                                 ))
                                             }
                                         </div>
-                                        <form className='message-input' onSubmit={handleSendMessage}>
+                                        <form className='message-input' onSubmit={(e) => {e.preventDefault(); handleSendMessage()}}>
                                             <input
                                                 type="text"
                                                 value={message}

@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import './login.css'
-import {users} from '../mockData.js';
 
 export const Login = ({ onLoginSuccess, onSignupClick }) => {
     const [showPassword, setShowPassword] = useState(false);
@@ -8,18 +7,29 @@ export const Login = ({ onLoginSuccess, onSignupClick }) => {
     const [email, setEmail] = useState('');
     const [error, setError] = useState('');
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        setError('');
         
-        const user = users.find(
-            user => user.email === email && user.password === password
-        );
+        try {
+            const response = await fetch('http://localhost:3001/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, password })
+            });
 
-        if (user) {
-            handleLogin(user);
-            onLoginSuccess(user);
-        } else {
-            setError('Email ou mot de passe incorrect');
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Erreur lors de la connexion');
+            }
+
+            onLoginSuccess(data.user);
+        } catch (error) {
+            console.error('Erreur de connexion:', error);
+            setError(error.message || 'Email ou mot de passe incorrect');
         }
     };
 
@@ -28,16 +38,6 @@ export const Login = ({ onLoginSuccess, onSignupClick }) => {
             onSignupClick();
         }
     };
-
-    const handleLogin = (user) => {
-        const userToStore = {
-            username: user.username,
-            email: user.email,
-            admin: user.admin,
-           
-        };
-        localStorage.setItem('currentUser', JSON.stringify(userToStore));
-    }
 
   return (
     <div className='main'>
@@ -61,7 +61,7 @@ export const Login = ({ onLoginSuccess, onSignupClick }) => {
                             </span>   
                         </div>                                                                                                                          
                         <div className='button'>
-                            <button type='submit' onClick={handleLogin}>Se connecter</button>
+                            <button type='submit'>Se connecter</button>
                         </div>
                         <div className='button signup-button'>
                             <button type='button' onClick={handleSignupClick}>S'inscrire</button>
