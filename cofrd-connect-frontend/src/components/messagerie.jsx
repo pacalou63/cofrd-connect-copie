@@ -132,10 +132,35 @@ const Messagerie = ({ user, onLogout }) => {
         console.log('Socket.IO URL:', socketUrl);
         console.log('Connecting socket for user:', user.id);
         
+        // Configuration améliorée pour Socket.IO avec Vercel
         socketRef.current = io(socketUrl, {
-            query: { userId: user.id }
+            query: { userId: user.id },
+            transports: ['polling', 'websocket'], // Commencer par polling pour Vercel
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            timeout: 20000,
+            forceNew: true,
+            autoConnect: true
         });
-        socketRef.current.emit('login', user.id);
+
+        // Ajouter des gestionnaires d'événements pour le débogage
+        socketRef.current.on('connect', () => {
+            console.log('Socket connecté avec succès, ID:', socketRef.current.id);
+            socketRef.current.emit('login', user.id);
+        });
+
+        socketRef.current.on('connect_error', (error) => {
+            console.error('Erreur de connexion socket:', error);
+        });
+
+        socketRef.current.on('reconnect_attempt', (attemptNumber) => {
+            console.log(`Tentative de reconnexion #${attemptNumber}`);
+        });
+
+        socketRef.current.on('reconnect_failed', () => {
+            console.error('Échec de la reconnexion après plusieurs tentatives');
+        });
 
         const handlePrivateMessage = ({ from, message, id }) => {
             console.log('Message reçu via socket:', { from, message, id });

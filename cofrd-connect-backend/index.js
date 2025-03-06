@@ -6,27 +6,17 @@ const connectDB = require('./config/database');
 const User = require('./models/user');
 const Message = require('./models/message');
 const Activite = require('./models/activite');
+const { initializeSocketIO } = require('./socket');
 
 const app = express();
 const http = require('http');
 const server = http.createServer(app);
-const io = require('socket.io')(server, {
-    cors: {
-        origin: (origin, callback) => {
-            // Autoriser les requêtes sans origine (comme les applications mobiles ou Postman)
-            if (!origin) return callback(null, true);
-            
-            // Autoriser localhost et toutes les URL contenant 'cofrd-connect'
-            if (origin.includes('localhost') || origin.includes('cofrd-connect')) {
-                return callback(null, true);
-            }
-            
-            callback(new Error('Non autorisé par CORS'));
-        },
-        methods: ['GET', 'POST', 'PUT', 'DELETE'],
-        credentials: true
-    }
-});
+
+// Déterminer si nous sommes dans un environnement serverless (Vercel)
+const isVercel = process.env.VERCEL === '1';
+
+// Initialiser Socket.IO avec notre configuration
+const io = initializeSocketIO(server);
 
 // Connexion à MongoDB
 connectDB();
@@ -44,17 +34,7 @@ connectDB();
 // Middleware
 app.use(express.json());
 app.use(cors({
-    origin: (origin, callback) => {
-        // Autoriser les requêtes sans origine (comme les applications mobiles ou Postman)
-        if (!origin) return callback(null, true);
-        
-        // Autoriser localhost et toutes les URL contenant 'cofrd-connect'
-        if (origin.includes('localhost') || origin.includes('cofrd-connect')) {
-            return callback(null, true);
-        }
-        
-        callback(new Error('Non autorisé par CORS'));
-    },
+    origin: "*", // Autoriser toutes les origines pour Express
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true
@@ -500,70 +480,6 @@ app.delete('/api/users/:id', async (req, res) => {
     }
 });
 
-// Gestion des connexions socket
-io.on('connection', (socket) => {
-    console.log('Un utilisateur s\'est connecté');
-    let userId = null;
-
-    socket.on('login', (id) => {
-        console.log('Utilisateur connecté:', id);
-        userId = id;
-        socket.join(id);
-    });
-
-    socket.on('private message', async ({ to, from, message, id }) => {
-        console.log('Message privé reçu:', { to, from, message, id });
-        
-        try {
-            // Vérifier si le message existe déjà (pour éviter les doublons)
-            const existingMessage = await Message.findOne({ from, to, text: message });
-            
-            if (existingMessage) {
-                console.log('Message similaire déjà existant, utilisation de celui-ci:', existingMessage);
-                
-                // Envoyer le message au destinataire avec l'ID existant
-                io.to(to).emit('private message', {
-                    from,
-                    message,
-                    id: existingMessage.id,
-                    timestamp: existingMessage.timestamp
-                });
-                
-                return;
-            }
-            
-            // Sauvegarder le message dans la base de données
-            const newMessage = new Message({
-                from,
-                to,
-                text: message,
-                timestamp: new Date()
-            });
-            await newMessage.save();
-
-            console.log('Message sauvegardé avec succès:', newMessage);
-
-            // Envoyer le message au destinataire avec l'ID
-            io.to(to).emit('private message', {
-                from,
-                message,
-                id: newMessage.id,
-                timestamp: new Date()
-            });
-        } catch (error) {
-            console.error('Erreur lors de l\'envoi du message:', error);
-            socket.emit('error', { message: 'Erreur lors de l\'envoi du message' });
-        }
-    });
-
-    socket.on('disconnect', () => {
-        console.log('Utilisateur déconnecté:', userId);
-        if (userId) {
-            socket.leave(userId);
-        }
-    });
-});
-
 // Gestion des erreurs non capturées
 process.on('uncaughtException', (error) => {
     console.error('Erreur non capturée:', error);
@@ -575,6 +491,20 @@ process.on('unhandledRejection', (error) => {
 
 // Démarrage du serveur
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+if (!isVercel) {
+    server.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+    });
+}
+
+// Pour Vercel serverless
+if (isVercel) {
+    // Attacher le gestionnaire Socket.IO à l'API
+    io.attach(server);
+    
+    // Exposer l'application pour les fonctions serverless de Vercel
+    module.exports = app;
+} else {
+    // Pour le développement local, exporter le serveur HTTP
+    module.exports = server;
+}
