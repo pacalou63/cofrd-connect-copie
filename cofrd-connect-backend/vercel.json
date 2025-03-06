@@ -12,5 +12,8 @@
         "dest": "/",
         "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
       }
-    ]
+    ],
+    "env": {
+      "MONGODB_URI": "mongodb+srv://pascal:Pascaldzam12@pascal.n3e6s.mongodb.net/cofrd-connect?retryWrites=true&w=majority&appName=pascal"
+    }
 }

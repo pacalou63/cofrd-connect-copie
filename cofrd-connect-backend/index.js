@@ -21,6 +21,16 @@ const io = require('socket.io')(server, {
 // Connexion à MongoDB
 connectDB();
 
+// Base de données en mémoire pour les tests (commenté)
+// const inMemoryDB = {
+//     users: [
+//         { id: 1, username: 'admin', email: 'admin@example.com', admin: 1 },
+//         { id: 2, username: 'user1', email: 'user1@example.com', admin: 0 }
+//     ],
+//     messages: [],
+//     activites: []
+// };
+
 // Middleware
 app.use(express.json());
 app.use(cors({
@@ -46,7 +56,7 @@ app.get('/', (req, res) => {
 // Route pour obtenir tous les utilisateurs
 app.get('/api/users', async (req, res) => {
     try {
-        const users = await User.find({}, { password: 0 }); // Exclure le mot de passe
+        const users = await User.find().select('-password');
         res.json(users);
     } catch (error) {
         console.error('Erreur lors de la récupération des utilisateurs:', error);
@@ -59,14 +69,7 @@ app.get('/api/users', async (req, res) => {
 // Route pour obtenir tous les utilisateurs avec plus de détails
 app.get('/api/users/details', async (req, res) => {
     try {
-        const users = await User.find({}, { password: 0 }) // Exclure le mot de passe
-            .populate({
-                path: 'activites',
-                populate: {
-                    path: 'participants createur',
-                    select: '-password'
-                }
-            });
+        const users = await User.find().select('-password');
         res.json(users);
     } catch (error) {
         console.error('Erreur lors de la récupération des utilisateurs:', error);
@@ -82,17 +85,6 @@ app.post('/api/users', async (req, res) => {
         const { username, email, password } = req.body;
         console.log('Tentative d\'inscription:', { username, email, password: '******' });
         
-        // Vérification de la connexion à MongoDB
-        if (mongoose.connection.readyState !== 1) {
-            console.error('Erreur: MongoDB n\'est pas connecté. État actuel:', mongoose.connection.readyState);
-            console.error('URI MongoDB:', process.env.MONGODB_URI ? process.env.MONGODB_URI.substring(0, 20) + '...' : 'Non défini');
-            
-            return res.status(500).json({ 
-                message: 'Erreur de connexion à la base de données. Veuillez réessayer plus tard.',
-                details: 'La connexion à MongoDB n\'est pas établie. Vérifiez les logs du serveur.'
-            });
-        }
-        
         // Validation des données
         if (!username || !email || !password) {
             console.log('Validation échouée: champs manquants');
@@ -102,14 +94,12 @@ app.post('/api/users', async (req, res) => {
         }
 
         // Vérifier si l'utilisateur existe déjà
-        const existingUser = await User.findOne({
-            $or: [{ email }, { username }]
-        });
+        const existingUser = await User.findOne({ email: email });
 
         if (existingUser) {
             console.log('Utilisateur existant:', existingUser.username);
             return res.status(400).json({ 
-                message: 'Un utilisateur avec cet email ou ce nom d\'utilisateur existe déjà' 
+                message: 'Un utilisateur avec cet email existe déjà' 
             });
         }
 
@@ -121,47 +111,21 @@ app.post('/api/users', async (req, res) => {
         });
 
         // Sauvegarder l'utilisateur
-        try {
-            const savedUser = await user.save();
-            console.log('Utilisateur créé avec succès:', {
-                id: savedUser._id,
-                username: savedUser.username,
-                email: savedUser.email
-            });
+        await user.save();
 
-            // Retourner l'utilisateur sans le mot de passe
-            const userObject = savedUser.toObject();
-            delete userObject.password;
+        console.log('Utilisateur créé avec succès:', {
+            id: user.id,
+            username: user.username,
+            email: user.email
+        });
 
-            res.status(201).json({
-                message: 'Inscription réussie',
-                user: userObject
-            });
-        } catch (saveError) {
-            console.error('Erreur lors de la sauvegarde de l\'utilisateur:', saveError);
-            
-            // Vérifier si c'est une erreur de validation MongoDB
-            if (saveError.name === 'ValidationError') {
-                const messages = Object.values(saveError.errors).map(val => val.message);
-                return res.status(400).json({ 
-                    message: 'Erreur de validation', 
-                    details: messages 
-                });
-            }
-            
-            // Vérifier si c'est une erreur de duplication (code 11000)
-            if (saveError.code === 11000) {
-                return res.status(400).json({ 
-                    message: 'Un utilisateur avec cet email ou ce nom d\'utilisateur existe déjà' 
-                });
-            }
-            
-            // Autres erreurs
-            return res.status(500).json({
-                message: 'Erreur lors de la création de l\'utilisateur',
-                details: saveError.message
-            });
-        }
+        // Retourner l'utilisateur sans le mot de passe
+        const userObject = { ...user._doc, password: undefined };
+
+        res.status(201).json({
+            message: 'Inscription réussie',
+            user: userObject
+        });
     } catch (error) {
         console.error('Erreur détaillée lors de la création de l\'utilisateur:', error);
         
@@ -187,14 +151,8 @@ app.post('/api/login', async (req, res) => {
         }
 
         // Trouver l'utilisateur
-        const user = await User.findOne({ email });
-        console.log('Utilisateur trouvé:', user ? 'Oui' : 'Non');
-        if (user) {
-            console.log('ID utilisateur:', user._id);
-            console.log('Nom utilisateur:', user.username);
-            console.log('Mot de passe stocké (haché):', user.password);
-        }
-        
+        const user = await User.findOne({ email: email });
+
         if (!user) {
             return res.status(401).json({
                 message: 'Email ou mot de passe incorrect'
@@ -202,18 +160,14 @@ app.post('/api/login', async (req, res) => {
         }
 
         // Vérifier le mot de passe
-        const isMatch = await user.comparePassword(password);
-        console.log('Mot de passe correspond:', isMatch);
-
-        if (!isMatch) {
+        if (!(await user.comparePassword(password))) {
             return res.status(401).json({
                 message: 'Email ou mot de passe incorrect'
             });
         }
 
         // Retourner l'utilisateur sans le mot de passe
-        const userObject = user.toObject();
-        delete userObject.password;
+        const userObject = { ...user._doc, password: undefined };
 
         res.json({
             message: 'Connexion réussie',
@@ -237,9 +191,7 @@ app.get('/api/messages/:userId', async (req, res) => {
 
         console.log('Récupération des messages pour l\'utilisateur:', userId);
 
-        const messages = await Message.find({
-            $or: [{ from: userId }, { to: userId }]
-        }).sort({ timestamp: 1 });
+        const messages = await Message.find({ $or: [{ from: parseInt(userId) }, { to: parseInt(userId) }] });
 
         console.log('Messages trouvés:', messages.length);
         
@@ -249,7 +201,7 @@ app.get('/api/messages/:userId', async (req, res) => {
 
         // Organiser les messages par conversation
         const conversations = messages.reduce((acc, msg) => {
-            const conversationId = msg.from === userId ? msg.to : msg.from;
+            const conversationId = msg.from === parseInt(userId) ? msg.to : msg.from;
             if (!acc[conversationId]) {
                 acc[conversationId] = {
                     from: msg.from,
@@ -258,7 +210,7 @@ app.get('/api/messages/:userId', async (req, res) => {
                 };
             }
             acc[conversationId].messages.push({
-                id: msg._id.toString(), // Ajouter l'ID du message
+                id: msg.id,
                 from: msg.from,
                 message: msg.text,
                 timestamp: msg.timestamp
@@ -292,6 +244,7 @@ app.post('/api/messages', async (req, res) => {
         });
 
         await message.save();
+
         console.log('Message sauvegardé avec succès:', message);
         res.status(201).json(message);
     } catch (error) {
@@ -305,8 +258,7 @@ app.post('/api/messages', async (req, res) => {
 // Route pour les activités
 app.get('/api/activites', async (req, res) => {
     try {
-        const activites = await Activite.find()
-            .populate('participants', '-password'); // Exclure le mot de passe des participants
+        const activites = await Activite.find();
         res.json(activites);
     } catch (error) {
         console.error('Erreur lors de la récupération des activités:', error);
@@ -319,14 +271,6 @@ app.get('/api/activites', async (req, res) => {
 app.post('/api/activites', async (req, res) => {
     try {
         console.log('Backend - Tentative de création d\'activité:', req.body);
-        
-        // Vérification de la connexion à MongoDB
-        if (mongoose.connection.readyState !== 1) {
-            console.error('Backend - Erreur: MongoDB n\'est pas connecté. État actuel:', mongoose.connection.readyState);
-            return res.status(500).json({ 
-                message: 'Erreur de connexion à la base de données. Veuillez réessayer plus tard.' 
-            });
-        }
         
         // Validation des données minimales requises
         if (!req.body.libelleActivite || !req.body.description || !req.body.lieu || !req.body.date) {
@@ -344,21 +288,21 @@ app.post('/api/activites', async (req, res) => {
             idActivite: req.body.idActivite
         });
         
-        const savedActivite = await newActivite.save();
+        await newActivite.save();
         
         console.log('Backend - Activité créée avec succès:', {
-            id: savedActivite._id,
-            libelleActivite: savedActivite.libelleActivite,
-            fullObject: savedActivite
+            id: newActivite.id,
+            libelleActivite: newActivite.libelleActivite,
+            fullObject: newActivite
         });
         
         // Assurons-nous de renvoyer l'objet dans le format attendu par le frontend
         const responseActivite = {
-            idActivite: savedActivite.idActivite || savedActivite._id.toString(),
-            libelleActivite: savedActivite.libelleActivite,
-            description: savedActivite.description,
-            lieu: savedActivite.lieu,
-            date: savedActivite.date
+            idActivite: newActivite.idActivite || newActivite.id.toString(),
+            libelleActivite: newActivite.libelleActivite,
+            description: newActivite.description,
+            lieu: newActivite.lieu,
+            date: newActivite.date
         };
         
         console.log('Backend - Réponse envoyée au frontend:', responseActivite);
@@ -366,15 +310,6 @@ app.post('/api/activites', async (req, res) => {
         res.status(201).json(responseActivite);
     } catch (error) {
         console.error('Backend - Erreur détaillée lors de la création de l\'activité:', error);
-        
-        // Vérifier si c'est une erreur de validation MongoDB
-        if (error.name === 'ValidationError') {
-            const messages = Object.values(error.errors).map(val => val.message);
-            return res.status(400).json({ 
-                message: 'Erreur de validation', 
-                details: messages 
-            });
-        }
         
         res.status(500).json({
             message: 'Erreur lors de la création de l\'activité',
@@ -389,14 +324,8 @@ app.put('/api/activites/:id', async (req, res) => {
         console.log('Backend - Tentative de mise à jour de l\'activité avec ID:', id);
         console.log('Backend - Données reçues pour la mise à jour:', req.body);
         
-        // Rechercher d'abord l'activité par ID MongoDB
+        // Rechercher d'abord l'activité par ID
         let activite = await Activite.findById(id);
-        
-        // Si non trouvée, essayer de rechercher par idActivite
-        if (!activite && !mongoose.Types.ObjectId.isValid(id)) {
-            console.log('Backend - ID non valide pour MongoDB, recherche par idActivite:', id);
-            activite = await Activite.findOne({ idActivite: parseInt(id) || id });
-        }
         
         if (!activite) {
             console.log('Backend - Activité non trouvée avec ID:', id);
@@ -414,11 +343,10 @@ app.put('/api/activites/:id', async (req, res) => {
         if (req.body.statut) activite.statut = req.body.statut;
         if (req.body.idActivite) activite.idActivite = req.body.idActivite;
         
-        // Sauvegarder les modifications
-        const updatedActivite = await activite.save();
+        await activite.save();
         
-        console.log('Backend - Activité mise à jour avec succès:', updatedActivite);
-        res.json(updatedActivite);
+        console.log('Backend - Activité mise à jour avec succès:', activite);
+        res.json(activite);
     } catch (error) {
         console.error('Backend - Erreur lors de la mise à jour de l\'activité:', error);
         res.status(500).json({
@@ -432,18 +360,10 @@ app.delete('/api/activites/:id', async (req, res) => {
     try {
         console.log('Backend - Tentative de suppression d\'activité avec ID:', req.params.id);
         
-        // Vérification de la connexion à MongoDB
-        if (mongoose.connection.readyState !== 1) {
-            console.error('Backend - Erreur: MongoDB n\'est pas connecté. État actuel:', mongoose.connection.readyState);
-            return res.status(500).json({ 
-                message: 'Erreur de connexion à la base de données. Veuillez réessayer plus tard.' 
-            });
-        }
-        
         const id = req.params.id;
-        const deletedActivite = await Activite.findByIdAndDelete(id);
+        const activite = await Activite.findByIdAndRemove(id);
         
-        if (!deletedActivite) {
+        if (!activite) {
             console.log('Backend - Activité non trouvée avec ID:', id);
             return res.status(404).json({ 
                 message: 'Activité non trouvée' 
@@ -451,14 +371,14 @@ app.delete('/api/activites/:id', async (req, res) => {
         }
         
         console.log('Backend - Activité supprimée avec succès:', {
-            id: deletedActivite._id,
-            libelleActivite: deletedActivite.libelleActivite
+            id: activite.id,
+            libelleActivite: activite.libelleActivite
         });
         
         res.json({ 
             success: true, 
             message: 'Activité supprimée avec succès',
-            id: deletedActivite._id
+            id: activite.id
         });
     } catch (error) {
         console.error('Backend - Erreur détaillée lors de la suppression de l\'activité:', error);
@@ -523,20 +443,15 @@ app.post('/api/admin/users', async (req, res) => {
         });
 
         await user.save();
+
         console.log('Admin créé avec succès');
 
         // Retourner l'utilisateur sans le mot de passe
-        const userObject = user.toObject();
-        delete userObject.password;
+        const userObject = { ...user._doc, password: undefined };
 
         res.status(201).json(userObject);
     } catch (error) {
         console.error('Erreur détaillée:', error);
-        if (error.code === 11000) {
-            return res.status(400).json({ 
-                message: 'Un utilisateur avec cet email ou ce nom d\'utilisateur existe déjà' 
-            });
-        }
         res.status(500).json({ message: 'Erreur lors de la création de l\'utilisateur' });
     }
 });
@@ -547,20 +462,14 @@ app.delete('/api/users/:id', async (req, res) => {
         const id = req.params.id;
         console.log('Backend - Tentative de suppression de l\'utilisateur avec ID:', id);
         
-        // Vérifier si l'ID est valide pour MongoDB
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            console.log('Backend - ID non valide pour MongoDB:', id);
-            return res.status(400).json({ message: 'ID utilisateur non valide' });
-        }
+        const user = await User.findByIdAndRemove(id);
         
-        const deletedUser = await User.findByIdAndDelete(id);
-        
-        if (!deletedUser) {
+        if (!user) {
             console.log('Backend - Utilisateur non trouvé avec ID:', id);
             return res.status(404).json({ message: 'Utilisateur non trouvé' });
         }
         
-        console.log('Backend - Utilisateur supprimé avec succès:', deletedUser);
+        console.log('Backend - Utilisateur supprimé avec succès:', user);
         res.json({ success: true, message: 'Utilisateur supprimé avec succès' });
     } catch (error) {
         console.error('Backend - Erreur lors de la suppression de l\'utilisateur:', error);
@@ -587,13 +496,7 @@ io.on('connection', (socket) => {
         
         try {
             // Vérifier si le message existe déjà (pour éviter les doublons)
-            const existingMessage = await Message.findOne({ 
-                from, 
-                to, 
-                text: message,
-                // Limiter la recherche aux messages récents (dernières 24h)
-                timestamp: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) }
-            });
+            const existingMessage = await Message.findOne({ from, to, text: message });
             
             if (existingMessage) {
                 console.log('Message similaire déjà existant, utilisation de celui-ci:', existingMessage);
@@ -602,7 +505,7 @@ io.on('connection', (socket) => {
                 io.to(to).emit('private message', {
                     from,
                     message,
-                    id: existingMessage._id.toString(),
+                    id: existingMessage.id,
                     timestamp: existingMessage.timestamp
                 });
                 
@@ -617,13 +520,14 @@ io.on('connection', (socket) => {
                 timestamp: new Date()
             });
             await newMessage.save();
+
             console.log('Message sauvegardé avec succès:', newMessage);
 
             // Envoyer le message au destinataire avec l'ID
             io.to(to).emit('private message', {
                 from,
                 message,
-                id: id || newMessage._id.toString(), // Utiliser l'ID fourni ou générer un nouveau
+                id: newMessage.id,
                 timestamp: new Date()
             });
         } catch (error) {

@@ -11,10 +11,14 @@ const connectDB = async () => {
             throw new Error('MONGODB_URI n\'est pas défini dans les variables d\'environnement');
         }
         
+        // Ajout d'options supplémentaires pour la connexion
         const conn = await mongoose.connect(process.env.MONGODB_URI, {
             useNewUrlParser: true,
             useUnifiedTopology: true,
-            serverSelectionTimeoutMS: 5000 // Timeout après 5 secondes
+            serverSelectionTimeoutMS: 10000, // Timeout après 10 secondes
+            connectTimeoutMS: 10000, // Timeout de connexion
+            socketTimeoutMS: 45000, // Timeout de socket
+            family: 4 // Forcer IPv4
         });
         
         console.log(`MongoDB Connected: ${conn.connection.host}`);
