@@ -22,13 +22,13 @@ const io = require('socket.io')(server, {
 connectDB();
 
 // Middleware
+app.use(express.json());
 app.use(cors({
-    origin: ['http://localhost:3000', 'https://cofrd-connect.vercel.app'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true
 }));
-
-app.use(express.json());
 
 // Route de test
 app.get('/', (req, res) => {
