@@ -128,119 +128,82 @@ const Messagerie = ({ user, onLogout }) => {
         }
 
         const socketUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+        const isVercelDeployment = socketUrl.includes('vercel.app');
         
         console.log('Socket.IO URL:', socketUrl);
         console.log('Connecting socket for user:', user.id);
+        console.log('Est-ce un déploiement Vercel?', isVercelDeployment);
         
-        // Configuration améliorée pour Socket.IO avec Vercel
-        socketRef.current = io(socketUrl, {
-            query: { userId: user.id },
-            transports: ['polling', 'websocket'], // Commencer par polling pour Vercel
-            reconnectionAttempts: 5,
-            reconnectionDelay: 1000,
-            reconnectionDelayMax: 5000,
-            timeout: 20000,
-            forceNew: true,
-            autoConnect: true
-        });
-
-        // Ajouter des gestionnaires d'événements pour le débogage
-        socketRef.current.on('connect', () => {
-            console.log('Socket connecté avec succès, ID:', socketRef.current.id);
-            socketRef.current.emit('login', user.id);
-        });
-
-        socketRef.current.on('connect_error', (error) => {
-            console.error('Erreur de connexion socket:', error);
-        });
-
-        socketRef.current.on('reconnect_attempt', (attemptNumber) => {
-            console.log(`Tentative de reconnexion #${attemptNumber}`);
-        });
-
-        socketRef.current.on('reconnect_failed', () => {
-            console.error('Échec de la reconnexion après plusieurs tentatives');
-        });
-
-        const handlePrivateMessage = ({ from, message, id }) => {
-            console.log('Message reçu via socket:', { from, message, id });
-            
-            // Si l'ID du message n'est pas défini, on en génère un
-            const messageId = id || `msg_${from}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            
-            // Vérifier si le message a déjà été traité
-            if (processedMessageIds.has(messageId)) {
-                console.log('Message déjà traité, ignoré:', messageId);
-                return;
-            }
-            
-            // Marquer le message comme traité
-            setProcessedMessageIds(prev => new Set([...prev, messageId]));
-
-            // Si le message vient d'un autre utilisateur, incrémenter les compteurs
-            if (from !== user.id) {
-                console.log('Message reçu d\'un autre utilisateur:', from);
-                setUnreadMessages(prev => ({
-                    ...prev,
-                    [from]: (prev[from] || 0) + 1
-                }));
-                setTotalUnreadMessages(prev => prev + 1);
-            } else {
-                console.log('Message reçu de moi-même, pas d\'incrémentation des compteurs');
-            }
-
-            const formattedDate = formatDate(new Date());
-
-            setConversations(prev => {
-                const newConversations = [...prev];
-                
-                // Rechercher la conversation en tenant compte des deux formats d'ID possibles
-                const conversation = newConversations.find(
-                    c => c.user && (c.user.id === from || c.user._id === from || c.from === from)
-                );
-
-                // Vérifier si le message existe déjà dans la conversation
-                const messageExists = conversation && conversation.messages.some(m => m.id === messageId);
-                if (messageExists) {
-                    console.log('Message déjà présent dans la conversation, ignoré:', messageId);
-                    return prev; // Retourner l'état précédent sans modification
-                }
-
-                const newMessage = {
-                    id: messageId,
-                    from,
-                    message,
-                    timestamp: formattedDate
-                };
-
-                if (conversation) {
-                    // Vérifier si le message existe déjà dans la conversation
-                    if (!conversation.messages.some(m => m.id === messageId)) {
-                        conversation.messages.push(newMessage);
-                    }
-                } else {
-                    // Trouver l'utilisateur correspondant
-                    const fromUser = users.find(u => u.id === from || u._id === from);
-                    // S'assurer que l'utilisateur a un ID normalisé
-                    const normalizedUser = fromUser ? {
-                        ...fromUser,
-                        id: fromUser.id || fromUser._id
-                    } : { id: from, username: 'Utilisateur inconnu' };
-                    
-                    newConversations.push({
-                        from,
-                        to: user.id,
-                        user: normalizedUser,
-                        messages: [newMessage]
-                    });
-                }
-
-                return newConversations;
+        // Approche hybride : Socket.IO en local, REST API sur Vercel
+        if (!isVercelDeployment) {
+            // Configuration Socket.IO pour environnement local
+            socketRef.current = io(socketUrl, {
+                query: { userId: user.id },
+                transports: ['polling', 'websocket'],
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+                timeout: 20000,
+                forceNew: true,
+                autoConnect: true
             });
-        };
 
-        socketRef.current.on('private message', handlePrivateMessage);
+            // Ajouter des gestionnaires d'événements pour le débogage
+            socketRef.current.on('connect', () => {
+                console.log('Socket connecté avec succès, ID:', socketRef.current.id);
+                socketRef.current.emit('login', user.id);
+            });
 
+            socketRef.current.on('connect_error', (error) => {
+                console.error('Erreur de connexion socket:', error);
+            });
+
+            socketRef.current.on('reconnect_attempt', (attemptNumber) => {
+                console.log(`Tentative de reconnexion #${attemptNumber}`);
+            });
+
+            socketRef.current.on('reconnect_failed', () => {
+                console.error('Échec de la reconnexion après plusieurs tentatives');
+            });
+
+            // Gestionnaire de messages privés pour Socket.IO
+            socketRef.current.on('private message', handlePrivateMessage);
+        } else {
+            console.log('Utilisation du mode REST API pour Vercel');
+            
+            // Configurer un intervalle pour vérifier les nouveaux messages en mode REST
+            const checkInterval = setInterval(async () => {
+                try {
+                    console.log('Vérification des nouveaux messages...');
+                    const messages = await loadMessages(user.id);
+                    
+                    if (Array.isArray(messages) && messages.length > 0) {
+                        // Traiter uniquement les nouveaux messages
+                        const processedIds = Array.from(processedMessageIds);
+                        
+                        messages.forEach(conv => {
+                            conv.messages.forEach(msg => {
+                                // Si le message n'a pas encore été traité
+                                if (!processedIds.includes(msg.id)) {
+                                    handlePrivateMessage({
+                                        from: msg.from,
+                                        message: msg.message,
+                                        id: msg.id
+                                    });
+                                }
+                            });
+                        });
+                    }
+                } catch (error) {
+                    console.error('Erreur lors de la vérification des nouveaux messages:', error);
+                }
+            }, 5000); // Vérifier toutes les 5 secondes
+            
+            // Nettoyer l'intervalle lors du démontage du composant
+            return () => clearInterval(checkInterval);
+        }
+
+        // Fonction de nettoyage
         return () => {
             if (socketRef.current) {
                 socketRef.current.disconnect();
@@ -394,22 +357,58 @@ const Messagerie = ({ user, onLogout }) => {
             });
 
             const formattedDate = formatDate(new Date());
-
-            // Sauvegarder le message dans la base de données AVANT de l'ajouter localement
+            
+            // Vérifier si nous sommes sur Vercel
+            const socketUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+            const isVercelDeployment = socketUrl.includes('vercel.app');
+            
+            // Sauvegarder le message dans la base de données
             let savedMessageId = messageId;
             try {
-                const savedMessage = await saveMessages({
-                    id: messageId,
-                    from: user.id,
-                    to: recipientId,
-                    text: messageText
-                });
-                console.log('Message sauvegardé avec succès:', savedMessage);
-                
-                // Si le backend a généré un nouvel ID, l'utiliser
-                if (savedMessage && savedMessage._id) {
-                    savedMessageId = savedMessage._id.toString();
-                    console.log('Utilisation de l\'ID généré par le backend:', savedMessageId);
+                if (isVercelDeployment) {
+                    // Utiliser l'API REST sur Vercel
+                    console.log('Utilisation de l\'API REST pour envoyer le message (Vercel)');
+                    const response = await fetch(`${socketUrl}/api/messages`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            id: messageId,
+                            from: user.id,
+                            to: recipientId,
+                            text: messageText
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Erreur HTTP: ${response.status}`);
+                    }
+                    
+                    const savedMessage = await response.json();
+                    console.log('Message sauvegardé avec succès via API REST:', savedMessage);
+                    
+                    // Si le backend a généré un nouvel ID, l'utiliser
+                    if (savedMessage && savedMessage._id) {
+                        savedMessageId = savedMessage._id.toString();
+                        console.log('Utilisation de l\'ID généré par le backend:', savedMessageId);
+                    }
+                } else {
+                    // Utiliser la fonction saveMessages en local
+                    console.log('Utilisation de saveMessages pour envoyer le message (local)');
+                    const savedMessage = await saveMessages({
+                        id: messageId,
+                        from: user.id,
+                        to: recipientId,
+                        text: messageText
+                    });
+                    console.log('Message sauvegardé avec succès:', savedMessage);
+                    
+                    // Si le backend a généré un nouvel ID, l'utiliser
+                    if (savedMessage && savedMessage._id) {
+                        savedMessageId = savedMessage._id.toString();
+                        console.log('Utilisation de l\'ID généré par le backend:', savedMessageId);
+                    }
                 }
             } catch (saveError) {
                 console.error('Erreur lors de la sauvegarde du message:', saveError);
@@ -449,10 +448,11 @@ const Messagerie = ({ user, onLogout }) => {
 
             // Envoyer via socket APRÈS avoir mis à jour l'état local
             // pour éviter le double envoi
-            if (socketRef.current) {
+            if (!isVercelDeployment && socketRef.current) {
                 // Éviter d'envoyer le message à soi-même via socket.io
                 // car il est déjà ajouté localement
                 if (recipientId !== user.id) {
+                    console.log('Envoi du message via Socket.IO');
                     socketRef.current.emit('private message', {
                         id: savedMessageId,
                         to: recipientId,
@@ -460,6 +460,8 @@ const Messagerie = ({ user, onLogout }) => {
                         message: messageText
                     });
                 }
+            } else if (isVercelDeployment) {
+                console.log('Socket.IO non utilisé sur Vercel, message déjà envoyé via API REST');
             } else {
                 console.error('Socket non connecté');
             }
@@ -536,6 +538,83 @@ const Messagerie = ({ user, onLogout }) => {
             };
             setConversations([...conversations, newConversation]);
         }
+    };
+
+    const handlePrivateMessage = ({ from, message, id }) => {
+        console.log('Message reçu:', { from, message, id });
+        
+        // Si l'ID du message n'est pas défini, on en génère un
+        const messageId = id || `msg_${from}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Vérifier si le message a déjà été traité
+        if (processedMessageIds.has(messageId)) {
+            console.log('Message déjà traité, ignoré:', messageId);
+            return;
+        }
+        
+        // Marquer le message comme traité
+        setProcessedMessageIds(prev => new Set([...prev, messageId]));
+
+        // Si le message vient d'un autre utilisateur, incrémenter les compteurs
+        if (from !== user.id) {
+            console.log('Message reçu d\'un autre utilisateur:', from);
+            setUnreadMessages(prev => ({
+                ...prev,
+                [from]: (prev[from] || 0) + 1
+            }));
+            setTotalUnreadMessages(prev => prev + 1);
+        } else {
+            console.log('Message reçu de moi-même, pas d\'incrémentation des compteurs');
+        }
+
+        const formattedDate = formatDate(new Date());
+
+        setConversations(prev => {
+            const newConversations = [...prev];
+            
+            // Rechercher la conversation en tenant compte des deux formats d'ID possibles
+            const conversation = newConversations.find(
+                c => c.user && (c.user.id === from || c.user._id === from || c.from === from)
+            );
+
+            // Vérifier si le message existe déjà dans la conversation
+            const messageExists = conversation && conversation.messages.some(m => m.id === messageId);
+            if (messageExists) {
+                console.log('Message déjà présent dans la conversation, ignoré:', messageId);
+                return prev; // Retourner l'état précédent sans modification
+            }
+
+            const newMessage = {
+                id: messageId,
+                from,
+                message,
+                timestamp: formattedDate
+            };
+
+            if (conversation) {
+                // Vérifier si le message existe déjà dans la conversation
+                if (!conversation.messages.some(m => m.id === messageId)) {
+                    conversation.messages.push(newMessage);
+                }
+            } else {
+                // Trouver l'utilisateur correspondant
+                const fromUser = users.find(u => u.id === from || u._id === from);
+                // S'assurer que l'utilisateur a un ID normalisé
+                const normalizedUser = fromUser ? {
+                    ...fromUser,
+                    id: fromUser.id || fromUser._id
+                } : { id: from, username: 'Utilisateur inconnu' };
+                
+                newConversations.push({
+                    from,
+                    to: user.id,
+                    user: normalizedUser,
+                    messages: [newMessage]
+                });
+            }
+
+            return newConversations;
+        });
     };
 
     return (
