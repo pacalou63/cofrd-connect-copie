@@ -32,7 +32,15 @@ app.use(cors({
 
 // Route de test
 app.get('/', (req, res) => {
-    res.json({ message: 'Backend is running!' });
+    res.json({ 
+        message: 'Backend is running!',
+        mongodbStatus: mongoose.connection.readyState ? 'Connected' : 'Disconnected',
+        env: {
+            nodeEnv: process.env.NODE_ENV || 'Not set',
+            mongodbUriExists: !!process.env.MONGODB_URI,
+            mongodbUriPrefix: process.env.MONGODB_URI ? process.env.MONGODB_URI.substring(0, 20) + '...' : 'Not set'
+        }
+    });
 });
 
 // Route pour obtenir tous les utilisateurs
@@ -77,8 +85,11 @@ app.post('/api/users', async (req, res) => {
         // Vérification de la connexion à MongoDB
         if (mongoose.connection.readyState !== 1) {
             console.error('Erreur: MongoDB n\'est pas connecté. État actuel:', mongoose.connection.readyState);
+            console.error('URI MongoDB:', process.env.MONGODB_URI ? process.env.MONGODB_URI.substring(0, 20) + '...' : 'Non défini');
+            
             return res.status(500).json({ 
-                message: 'Erreur de connexion à la base de données. Veuillez réessayer plus tard.' 
+                message: 'Erreur de connexion à la base de données. Veuillez réessayer plus tard.',
+                details: 'La connexion à MongoDB n\'est pas établie. Vérifiez les logs du serveur.'
             });
         }
         
@@ -110,43 +121,53 @@ app.post('/api/users', async (req, res) => {
         });
 
         // Sauvegarder l'utilisateur
-        const savedUser = await user.save();
-        console.log('Utilisateur créé avec succès:', {
-            id: savedUser._id,
-            username: savedUser.username,
-            email: savedUser.email
-        });
+        try {
+            const savedUser = await user.save();
+            console.log('Utilisateur créé avec succès:', {
+                id: savedUser._id,
+                username: savedUser.username,
+                email: savedUser.email
+            });
 
-        // Retourner l'utilisateur sans le mot de passe
-        const userObject = savedUser.toObject();
-        delete userObject.password;
+            // Retourner l'utilisateur sans le mot de passe
+            const userObject = savedUser.toObject();
+            delete userObject.password;
 
-        res.status(201).json({
-            message: 'Inscription réussie',
-            user: userObject
-        });
+            res.status(201).json({
+                message: 'Inscription réussie',
+                user: userObject
+            });
+        } catch (saveError) {
+            console.error('Erreur lors de la sauvegarde de l\'utilisateur:', saveError);
+            
+            // Vérifier si c'est une erreur de validation MongoDB
+            if (saveError.name === 'ValidationError') {
+                const messages = Object.values(saveError.errors).map(val => val.message);
+                return res.status(400).json({ 
+                    message: 'Erreur de validation', 
+                    details: messages 
+                });
+            }
+            
+            // Vérifier si c'est une erreur de duplication (code 11000)
+            if (saveError.code === 11000) {
+                return res.status(400).json({ 
+                    message: 'Un utilisateur avec cet email ou ce nom d\'utilisateur existe déjà' 
+                });
+            }
+            
+            // Autres erreurs
+            return res.status(500).json({
+                message: 'Erreur lors de la création de l\'utilisateur',
+                details: saveError.message
+            });
+        }
     } catch (error) {
         console.error('Erreur détaillée lors de la création de l\'utilisateur:', error);
         
-        // Vérifier si c'est une erreur de validation MongoDB
-        if (error.name === 'ValidationError') {
-            const messages = Object.values(error.errors).map(val => val.message);
-            return res.status(400).json({ 
-                message: 'Erreur de validation', 
-                details: messages 
-            });
-        }
-        
-        // Vérifier si c'est une erreur de duplication (code 11000)
-        if (error.code === 11000) {
-            return res.status(400).json({ 
-                message: 'Un utilisateur avec cet email ou ce nom d\'utilisateur existe déjà' 
-            });
-        }
-        
-        res.status(500).json({ 
-            message: 'Erreur lors de la création de l\'utilisateur',
-            error: error.message
+        return res.status(500).json({
+            message: 'Erreur serveur lors de la création de l\'utilisateur',
+            details: error.message
         });
     }
 });

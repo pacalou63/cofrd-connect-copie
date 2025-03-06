@@ -2,6 +2,15 @@ const mongoose = require('mongoose');
 
 const connectDB = async () => {
     try {
+        console.log('Tentative de connexion à MongoDB avec URI:', 
+            process.env.MONGODB_URI ? 
+            process.env.MONGODB_URI.substring(0, 20) + '...' : 
+            'Non défini');
+        
+        if (!process.env.MONGODB_URI) {
+            throw new Error('MONGODB_URI n\'est pas défini dans les variables d\'environnement');
+        }
+        
         const conn = await mongoose.connect(process.env.MONGODB_URI, {
             useNewUrlParser: true,
             useUnifiedTopology: true,
@@ -16,7 +25,7 @@ const connectDB = async () => {
         });
         
         mongoose.connection.on('error', (err) => {
-            console.error('Erreur de connexion Mongoose:', err);
+            console.error('Erreur de connexion Mongoose détaillée:', err);
         });
         
         mongoose.connection.on('disconnected', () => {
@@ -31,8 +40,10 @@ const connectDB = async () => {
         });
         
     } catch (error) {
-        console.error('Erreur de connexion à MongoDB:', error);
-        process.exit(1);
+        console.error('Erreur de connexion à MongoDB:', error.message);
+        console.error('Stack trace:', error.stack);
+        // Ne pas quitter le processus, mais permettre à l'application de continuer
+        // avec une gestion d'erreur appropriée
     }
 };
 
