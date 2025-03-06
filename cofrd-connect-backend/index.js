@@ -12,7 +12,17 @@ const http = require('http');
 const server = http.createServer(app);
 const io = require('socket.io')(server, {
     cors: {
-        origin: ['http://localhost:3000', 'https://cofrd-connect.vercel.app'],
+        origin: (origin, callback) => {
+            // Autoriser les requêtes sans origine (comme les applications mobiles ou Postman)
+            if (!origin) return callback(null, true);
+            
+            // Autoriser localhost et toutes les URL contenant 'cofrd-connect'
+            if (origin.includes('localhost') || origin.includes('cofrd-connect')) {
+                return callback(null, true);
+            }
+            
+            callback(new Error('Non autorisé par CORS'));
+        },
         methods: ['GET', 'POST', 'PUT', 'DELETE'],
         credentials: true
     }
@@ -34,7 +44,17 @@ connectDB();
 // Middleware
 app.use(express.json());
 app.use(cors({
-    origin: '*',
+    origin: (origin, callback) => {
+        // Autoriser les requêtes sans origine (comme les applications mobiles ou Postman)
+        if (!origin) return callback(null, true);
+        
+        // Autoriser localhost et toutes les URL contenant 'cofrd-connect'
+        if (origin.includes('localhost') || origin.includes('cofrd-connect')) {
+            return callback(null, true);
+        }
+        
+        callback(new Error('Non autorisé par CORS'));
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true
@@ -361,7 +381,7 @@ app.delete('/api/activites/:id', async (req, res) => {
         console.log('Backend - Tentative de suppression d\'activité avec ID:', req.params.id);
         
         const id = req.params.id;
-        const activite = await Activite.findByIdAndRemove(id);
+        const activite = await Activite.findByIdAndDelete(id);
         
         if (!activite) {
             console.log('Backend - Activité non trouvée avec ID:', id);
@@ -462,7 +482,7 @@ app.delete('/api/users/:id', async (req, res) => {
         const id = req.params.id;
         console.log('Backend - Tentative de suppression de l\'utilisateur avec ID:', id);
         
-        const user = await User.findByIdAndRemove(id);
+        const user = await User.findByIdAndDelete(id);
         
         if (!user) {
             console.log('Backend - Utilisateur non trouvé avec ID:', id);
