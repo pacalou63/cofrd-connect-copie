@@ -365,8 +365,9 @@
     background: white;
     border-radius: 10px;
     width: 400px;
-    max-height: 80vh;
+    max-height: 60vh;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    overflow-y: auto; /* Ajout de la propriété pour permettre le défilement vertical */
 }
 
 .modal-header {
@@ -402,7 +403,10 @@
     background-color: #f0f0f0;
 }
 
-
+.modal-content {
+    max-height: calc(80vh - 70px); /* 80vh (hauteur max du modal) moins la hauteur approximative du header */
+    overflow-y: auto;
+}
 
 .modal-content .contact-item {
     padding: 15px 20px;
