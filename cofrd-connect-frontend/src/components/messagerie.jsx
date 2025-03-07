@@ -312,7 +312,7 @@ const Messagerie = ({ user, onLogout }) => {
             
             // Marquer le message comme déjà traité pour éviter les doublons
             setProcessedMessageIds(prev => new Set([...prev, messageId]));
-            
+
             console.log('Envoi du message:', {
                 id: messageId,
                 to: recipientId,
@@ -322,115 +322,92 @@ const Messagerie = ({ user, onLogout }) => {
 
             const formattedDate = formatDate(new Date());
             
+            // Créer l'objet message
+            const newMessage = {
+                id: messageId,
+                from: user.id,
+                to: recipientId,
+                text: messageText,
+                timestamp: formattedDate
+            };
+            
             // Vérifier si nous sommes sur Vercel
             const socketUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
             const isVercelDeployment = socketUrl.includes('vercel.app');
             
+            // Ajouter le message à l'état local AVANT de l'envoyer au serveur
+            // Cela permet d'afficher le message immédiatement sans attendre la réponse du serveur
+            setConversations(prevConversations => {
+                // Rechercher la conversation existante avec cet utilisateur
+                const existingConvIndex = prevConversations.findIndex(
+                    conv => (conv.user.id === recipientId || conv.user._id === recipientId)
+                );
+                
+                if (existingConvIndex !== -1) {
+                    // Conversation existante trouvée, ajouter le message
+                    const updatedConversations = [...prevConversations];
+                    updatedConversations[existingConvIndex] = {
+                        ...updatedConversations[existingConvIndex],
+                        messages: [
+                            ...updatedConversations[existingConvIndex].messages,
+                            newMessage
+                        ]
+                    };
+                    return updatedConversations;
+                } else {
+                    // Créer une nouvelle conversation
+                    return [
+                        ...prevConversations,
+                        {
+                            from: user.id,
+                            to: recipientId,
+                            user: selectedUser,
+                            messages: [newMessage]
+                        }
+                    ];
+                }
+            });
+            
+            // Réinitialiser le champ de message
+            setMessage('');
+            
             // Sauvegarder le message dans la base de données
-            let savedMessageId = messageId;
             try {
                 if (isVercelDeployment) {
                     // Utiliser l'API REST sur Vercel
                     console.log('Utilisation de l\'API REST pour envoyer le message (Vercel)');
-                    const response = await fetch(`${socketUrl}/api/messages`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            id: messageId,
-                            from: user.id,
-                            to: recipientId,
-                            text: messageText
-                        })
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error(`Erreur HTTP: ${response.status}`);
-                    }
-                    
-                    const savedMessage = await response.json();
-                    console.log('Message sauvegardé avec succès via API REST:', savedMessage);
-                    
-                    // Si le backend a généré un nouvel ID, l'utiliser
-                    if (savedMessage && savedMessage._id) {
-                        savedMessageId = savedMessage._id.toString();
-                        console.log('Utilisation de l\'ID généré par le backend:', savedMessageId);
-                    }
-                } else {
-                    // Utiliser la fonction saveMessages en local
-                    console.log('Utilisation de saveMessages pour envoyer le message (local)');
-                    const savedMessage = await saveMessages({
+                    const response = await saveMessages({
                         id: messageId,
                         from: user.id,
                         to: recipientId,
                         text: messageText
                     });
-                    console.log('Message sauvegardé avec succès:', savedMessage);
                     
-                    // Si le backend a généré un nouvel ID, l'utiliser
-                    if (savedMessage && savedMessage._id) {
-                        savedMessageId = savedMessage._id.toString();
-                        console.log('Utilisation de l\'ID généré par le backend:', savedMessageId);
-                    }
-                }
-            } catch (saveError) {
-                console.error('Erreur lors de la sauvegarde du message:', saveError);
-                // Continuer même si la sauvegarde échoue
-            }
-
-            // Mettre à jour les conversations localement avec l'ID correct
-            setConversations(prev => {
-                const newConversations = [...prev];
-                const conversation = newConversations.find(
-                    c => c.user && (c.user.id === recipientId || c.user._id === recipientId)
-                );
-
-                const newMessage = {
-                    id: savedMessageId, // Utiliser l'ID du message sauvegardé
-                    from: user.id,
-                    message: messageText,
-                    timestamp: formattedDate
-                };
-
-                if (conversation) {
-                    // Vérifier si le message existe déjà dans la conversation
-                    if (!conversation.messages.some(m => m.id === savedMessageId)) {
-                        conversation.messages.push(newMessage);
-                    }
-                } else {
-                    newConversations.push({
-                        from: user.id,
-                        to: recipientId,
-                        user: selectedUser,
-                        messages: [newMessage]
-                    });
-                }
-
-                return newConversations;
-            });
-
-            // Envoyer via socket APRÈS avoir mis à jour l'état local
-            // pour éviter le double envoi
-            if (!isVercelDeployment && socketRef.current) {
-                // Éviter d'envoyer le message à soi-même via socket.io
-                // car il est déjà ajouté localement
-                if (recipientId !== user.id) {
-                    console.log('Envoi du message via Socket.IO');
+                    console.log('Message sauvegardé avec succès:', response);
+                } else if (socketRef.current && socketRef.current.connected) {
+                    // Utiliser Socket.IO en local
+                    console.log('Utilisation de Socket.IO pour envoyer le message');
                     socketRef.current.emit('private message', {
-                        id: savedMessageId,
+                        id: messageId,
                         to: recipientId,
                         from: user.id,
                         message: messageText
                     });
+                } else {
+                    // Fallback sur l'API REST si Socket.IO n'est pas disponible
+                    console.log('Socket.IO non disponible, utilisation de l\'API REST');
+                    await saveMessages({
+                        id: messageId,
+                        from: user.id,
+                        to: recipientId,
+                        text: messageText
+                    });
                 }
-            } else if (isVercelDeployment) {
-                console.log('Socket.IO non utilisé sur Vercel, message déjà envoyé via API REST');
-            } else {
-                console.error('Socket non connecté');
+            } catch (error) {
+                console.error('Erreur lors de l\'envoi du message:', error);
+                // Ne pas supprimer le message de l'interface même en cas d'erreur
+                // L'utilisateur verra toujours son message et pourra réessayer
             }
-
-            setMessage('');
         } catch (error) {
             console.error('Erreur lors de l\'envoi du message:', error);
         }
@@ -658,118 +635,118 @@ const Messagerie = ({ user, onLogout }) => {
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div className='messagerie-content'>
-                            <div className='contacts-list'>
-                                <div className='contacts-header'>
-                                    <h2>Conversations</h2>
-                                    <img 
-                                        src={allUsers} 
-                                        style={{ width: '40px', height: '40px', cursor: 'pointer' }} 
-                                        alt="allUsers" 
-                                        onClick={toggleAllUsers}
-                                    />
-                                </div>
-                                <div className='contacts'>
-                                    {conversations.map(conversation => (
-                                        <div 
-                                            key={conversation.id} 
-                                            className={`contact-item ${selectedUser?.id === conversation.user?.id ? 'selected' : ''}`}
-                                            onClick={() => handleConversationClick(conversation.user)}
-                                        >
-                                            <div className='contact-avatar'>
-                                                <img src={userLogo} alt={conversation.user.username} />
-                                                {unreadMessages[conversation.user.id] > 0 && (
-                                                    <span className='unread-badge'>
-                                                        {unreadMessages[conversation.user.id]}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className='contact-info'>
-                                                <h3>{conversation.user.username}</h3>
-                                                {conversation.messages.length > 0 && (
-                                                    <p className='last-message'>
-                                                        {conversation.messages[conversation.messages.length - 1].message.substring(0, 30)}
-                                                        {conversation.messages[conversation.messages.length - 1].message.length > 30 ? '...' : ''}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {showAllUsers && (
-                                <div className='modal-overlay'>
-                                    <div className='users-modal'>
-                                        <div className='modal-header'>
-                                            <h2>Tous les utilisateurs</h2>
-                                            <button onClick={toggleAllUsers} className='close-modal'>×</button>
-                                        </div>
-                                        <div className='modal-content'>
-                                            {users.map(otherUser => (
-                                                <div 
-                                                    key={otherUser.id} 
-                                                    className='contact-item'
-                                                    onClick={() => startNewConversation(otherUser)}
-                                                >
-                                                    <div className='contact-avatar'>
-                                                        <img src={userLogo} alt={otherUser.username} />
-                                                    </div>
-                                                    <div className='contact-info'>
-                                                        <h3>{otherUser.username}</h3>
-                                                    </div>
+                            <div className='messagerie-content'>
+                                <div className='contacts-list'>
+                                    <div className='contacts-header'>
+                                        <h2>Conversations</h2>
+                                        <img 
+                                            src={allUsers} 
+                                            style={{ width: '40px', height: '40px', cursor: 'pointer' }} 
+                                            alt="allUsers" 
+                                            onClick={toggleAllUsers}
+                                        />
+                                    </div>
+                                    <div className='contacts'>
+                                        {conversations.map(conversation => (
+                                            <div 
+                                                key={conversation.id} 
+                                                className={`contact-item ${selectedUser?.id === conversation.user?.id ? 'selected' : ''}`}
+                                                onClick={() => handleConversationClick(conversation.user)}
+                                            >
+                                                <div className='contact-avatar'>
+                                                    <img src={userLogo} alt={conversation.user.username} />
+                                                    {unreadMessages[conversation.user.id] > 0 && (
+                                                        <span className='unread-badge'>
+                                                            {unreadMessages[conversation.user.id]}
+                                                        </span>
+                                                    )}
                                                 </div>
-                                            ))}
-                                        </div>
+                                                <div className='contact-info'>
+                                                    <h3>{conversation.user.username}</h3>
+                                                    {conversation.messages.length > 0 && (
+                                                        <p className='last-message'>
+                                                            {conversation.messages[conversation.messages.length - 1].message.substring(0, 30)}
+                                                            {conversation.messages[conversation.messages.length - 1].message.length > 30 ? '...' : ''}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
-                            )}
 
-                            <div className='chat-container'>
-                                {selectedUser ? (
-                                    <>
-                                        <div className='chat-header'>
-                                            <h2>{selectedUser.username}</h2>
-                                        </div>
-                                        <div className='messages-container'>
-                                            {conversations
-                                                .find(conv => conv.user.id === selectedUser.id)
-                                                ?.messages
-                                                // Filtrer les messages dupliqués par ID de manière plus stricte
-                                                .filter((msg, index, self) => {
-                                                    // Trouver le premier message avec cet ID
-                                                    const firstIndex = self.findIndex(m => m.id === msg.id);
-                                                    // Ne garder que la première occurrence
-                                                    return index === firstIndex;
-                                                })
-                                                .map(msg => (
+                                {showAllUsers && (
+                                    <div className='modal-overlay'>
+                                        <div className='users-modal'>
+                                            <div className='modal-header'>
+                                                <h2>Tous les utilisateurs</h2>
+                                                <button onClick={toggleAllUsers} className='close-modal'>×</button>
+                                            </div>
+                                            <div className='modal-content'>
+                                                {users.map(otherUser => (
                                                     <div 
-                                                        key={msg.id} 
-                                                        className={`message ${msg.from === user.id ? 'sent' : 'received'}`}
+                                                        key={otherUser.id} 
+                                                        className='contact-item'
+                                                        onClick={() => startNewConversation(otherUser)}
                                                     >
-                                                        <p>{msg.message}</p>
-                                                        <span className='timestamp'>{msg.timestamp}</span>
+                                                        <div className='contact-avatar'>
+                                                            <img src={userLogo} alt={otherUser.username} />
+                                                        </div>
+                                                        <div className='contact-info'>
+                                                            <h3>{otherUser.username}</h3>
+                                                        </div>
                                                     </div>
-                                                ))
-                                            }
+                                                ))}
+                                            </div>
                                         </div>
-                                        <form className='message-input' onSubmit={(e) => {e.preventDefault(); handleSendMessage()}}>
-                                            <input
-                                                type="text"
-                                                value={message}
-                                                onChange={(e) => setMessage(e.target.value)}
-                                                placeholder="Écrivez votre message..."
-                                            />
-                                            <button type="submit">Envoyer</button>
-                                        </form>
-                                    </>
-                                ) : (
-                                    <div className='no-chat-selected'>
-                                        <h2>Sélectionnez une conversation pour commencer</h2>
                                     </div>
                                 )}
+
+                                <div className='chat-container'>
+                                    {selectedUser ? (
+                                        <>
+                                            <div className='chat-header'>
+                                                <h2>{selectedUser.username}</h2>
+                                            </div>
+                                            <div className='messages-container'>
+                                                {conversations
+                                                    .find(conv => conv.user.id === selectedUser.id)
+                                                    ?.messages
+                                                    // Filtrer les messages dupliqués par ID de manière plus stricte
+                                                    .filter((msg, index, self) => {
+                                                        // Trouver le premier message avec cet ID
+                                                        const firstIndex = self.findIndex(m => m.id === msg.id);
+                                                        // Ne garder que la première occurrence
+                                                        return index === firstIndex;
+                                                    })
+                                                    .map(msg => (
+                                                        <div 
+                                                            key={msg.id} 
+                                                            className={`message ${msg.from === user.id ? 'sent' : 'received'}`}
+                                                        >
+                                                            <p>{msg.message}</p>
+                                                            <span className='timestamp'>{msg.timestamp}</span>
+                                                        </div>
+                                                    ))
+                                                }
+                                            </div>
+                                            <form className='message-input' onSubmit={(e) => {e.preventDefault(); handleSendMessage()}}>
+                                                <input
+                                                    type="text"
+                                                    value={message}
+                                                    onChange={(e) => setMessage(e.target.value)}
+                                                    placeholder="Écrivez votre message..."
+                                                />
+                                                <button type="submit">Envoyer</button>
+                                            </form>
+                                        </>
+                                    ) : (
+                                        <div className='no-chat-selected'>
+                                            <h2>Sélectionnez une conversation pour commencer</h2>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
