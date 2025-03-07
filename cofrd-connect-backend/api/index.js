@@ -9,21 +9,9 @@ require('dotenv').config();
 
 const app = express();
 
-// Configuration CORS plus permissive pour Vercel
+// Configuration CORS simplifiée avec domaine stable
 const corsOptions = {
-    origin: function (origin, callback) {
-        // Autoriser les requêtes sans origine (comme les appels API)
-        if (!origin) return callback(null, true);
-        
-        // Autoriser localhost et tous les domaines frontend sur vercel.app
-        if (origin.includes('localhost') || 
-            (origin.includes('frontend') && origin.includes('vercel.app'))) {
-            return callback(null, true);
-        } else {
-            console.log('Origine bloquée par CORS:', origin);
-            return callback(null, false);
-        }
-    },
+    origin: ["https://cofrd-connect-frontend.vercel.app", "http://localhost:3000"],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true,
@@ -35,17 +23,12 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-// Ajouter des en-têtes CORS manuellement pour plus de sécurité
+// Middleware CORS simplifié
 app.use((req, res, next) => {
     const origin = req.headers.origin;
     
-    // Autoriser localhost et tous les domaines frontend sur vercel.app
-    if (origin && (origin.includes('localhost') || 
-                  (origin.includes('frontend') && origin.includes('vercel.app')))) {
+    if (origin === "https://cofrd-connect-frontend.vercel.app" || origin === "http://localhost:3000") {
         res.setHeader('Access-Control-Allow-Origin', origin);
-    } else {
-        // En développement, permettre toutes les origines
-        res.setHeader('Access-Control-Allow-Origin', '*');
     }
     
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');

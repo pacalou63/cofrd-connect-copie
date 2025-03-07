@@ -2,10 +2,10 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const connectDB = require('./config/database');
-const User = require('./models/user');
-const Message = require('./models/message');
-const Activite = require('./models/activite');
+const connectDB = require('./database'); // Chemin d'importation corrigé
+const User = require('./models/User'); // Chemin d'importation corrigé
+const Message = require('./models/Message'); // Chemin d'importation corrigé
+const Activite = require('./models/Activite'); // Chemin d'importation corrigé
 const { initializeSocketIO } = require('./socket');
 
 const app = express();
