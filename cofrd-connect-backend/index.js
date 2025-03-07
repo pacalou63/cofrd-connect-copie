@@ -2,34 +2,31 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const connectDB = require('./database'); // Chemin d'importation corrigé
-const User = require('./models/user'); // Correction de la casse pour être compatible avec Linux
-const Message = require('./models/Message'); // Chemin d'importation corrigé
-const Activite = require('./models/Activite'); // Chemin d'importation corrigé
-const { initializeSocketIO } = require('./socket');
+const connectDB = require('./database');
+const User = require('./models/user'); 
+const Message = require('./models/Message');
+const Activite = require('./models/Activite');
 
+// Créer l'application Express
 const app = express();
-const http = require('http');
-const server = http.createServer(app);
 
 // Déterminer si nous sommes dans un environnement serverless (Vercel)
 const isVercel = process.env.VERCEL === '1';
 
-// Initialiser Socket.IO avec notre configuration
-const io = initializeSocketIO(server);
+// Configuration conditionnelle de Socket.IO
+let io = null;
+let server = null;
+
+// Ne créer le serveur HTTP et initialiser Socket.IO que si nous ne sommes pas sur Vercel
+if (!isVercel) {
+    const http = require('http');
+    const { initializeSocketIO } = require('./socket');
+    server = http.createServer(app);
+    io = initializeSocketIO(server);
+}
 
 // Connexion à MongoDB
 connectDB();
-
-// Base de données en mémoire pour les tests (commenté)
-// const inMemoryDB = {
-//     users: [
-//         { id: 1, username: 'admin', email: 'admin@example.com', admin: 1 },
-//         { id: 2, username: 'user1', email: 'user1@example.com', admin: 0 }
-//     ],
-//     messages: [],
-//     activites: []
-// };
 
 // Configuration CORS améliorée
 const corsOptions = {
@@ -548,22 +545,13 @@ process.on('unhandledRejection', (error) => {
     console.error('Promesse rejetée non gérée:', error);
 });
 
-// Démarrage du serveur
-const PORT = process.env.PORT || 3001;
+// Si nous ne sommes pas sur Vercel, démarrer le serveur HTTP
 if (!isVercel) {
+    const PORT = process.env.PORT || 3001;
     server.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
+        console.log(`Serveur démarré sur le port ${PORT}`);
     });
 }
 
-// Pour Vercel serverless
-if (isVercel) {
-    // Attacher le gestionnaire Socket.IO à l'API
-    io.attach(server);
-    
-    // Exposer l'application pour les fonctions serverless de Vercel
-    module.exports = app;
-} else {
-    // Pour le développement local, exporter le serveur HTTP
-    module.exports = server;
-}
+// Exporter l'application pour Vercel
+module.exports = app;
