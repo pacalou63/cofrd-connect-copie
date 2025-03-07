@@ -12,26 +12,21 @@ export const Login = ({ onLoginSuccess, onSignupClick }) => {
         setError('');
         
         try {
-            // URL de l'API - Utilise la variable d'environnement ou une valeur par défaut
+            // Construire l'URL de l'API
             let API_URL = process.env.REACT_APP_API_URL 
                 ? `${process.env.REACT_APP_API_URL}/api/login` 
                 : 'http://localhost:3001/api/login';
-            
-            // Ne pas utiliser l'astuce du point qui cause des problèmes
-            // if (API_URL.includes('vercel.app') && !API_URL.includes('vercel.app.')) {
-            //     API_URL = API_URL.replace('vercel.app', 'vercel.app.');
-            // }
             
             console.log('Login API URL:', API_URL);
             
             const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ email, password }),
                 mode: 'cors', // Mode CORS explicite
-                credentials: window.location.hostname === 'localhost' ? 'include' : 'same-origin' // Gestion des credentials adaptée
+                credentials: 'include' // Toujours inclure les credentials
             });
 
             if (!response.ok) {

@@ -47,11 +47,6 @@ export const Signup = ({ onSignupSuccess, onBackToLogin }) => {
                 ? `${process.env.REACT_APP_API_URL}/api/users` 
                 : 'http://localhost:3001/api/users';
             
-            // Ne pas utiliser l'astuce du point qui cause des problèmes
-            // if (API_URL.includes('vercel.app') && !API_URL.includes('vercel.app.')) {
-            //     API_URL = API_URL.replace('vercel.app', 'vercel.app.');
-            // }
-            
             console.log('Signup API URL:', API_URL);
             
             const response = await fetch(API_URL, {
@@ -61,7 +56,7 @@ export const Signup = ({ onSignupSuccess, onBackToLogin }) => {
                 },
                 body: JSON.stringify(userData),
                 mode: 'cors', // Mode CORS explicite
-                credentials: window.location.hostname === 'localhost' ? 'include' : 'same-origin' // Gestion des credentials adaptée
+                credentials: 'include' // Toujours inclure les credentials
             });
 
             const data = await response.json();

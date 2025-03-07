@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const User = require('../models/User');
+const User = require('../models/user');
 
 // Route pour obtenir tous les utilisateurs (sans les mots de passe)
 router.get('/', async (req, res) => {
@@ -68,25 +68,38 @@ router.post('/login', async (req, res) => {
     }
 });
 
-// Route pour créer un utilisateur
+// Route pour créer un utilisateur (inscription)
 router.post('/', async (req, res) => {
     try {
-        const { username, password, admin } = req.body;
+        const { username, email, password, admin } = req.body;
         
-        if (!username || !password) {
-            return res.status(400).json({ message: 'Nom d\'utilisateur et mot de passe requis' });
+        console.log('Tentative d\'inscription avec:', { username, email, password: '***' });
+        
+        if (!username || !email || !password) {
+            return res.status(400).json({ 
+                message: 'Nom d\'utilisateur, email et mot de passe requis' 
+            });
         }
         
         // Vérifier si l'utilisateur existe déjà
-        const existingUser = await User.findOne({ username });
+        const existingUser = await User.findOne({ 
+            $or: [
+                { email: email },
+                { username: username }
+            ]
+        });
+        
         if (existingUser) {
-            return res.status(400).json({ message: 'Cet utilisateur existe déjà' });
+            return res.status(400).json({
+                message: existingUser.email === email ? 'Email déjà utilisé' : 'Nom d\'utilisateur déjà utilisé'
+            });
         }
         
         // Créer un nouvel utilisateur
         const newUser = new User({
             username,
-            password, // En production, hasher le mot de passe avec bcrypt
+            email,
+            password,
             admin: admin || 0
         });
         
@@ -96,13 +109,20 @@ router.post('/', async (req, res) => {
         const userWithoutPassword = {
             id: newUser._id,
             username: newUser.username,
+            email: newUser.email,
             admin: newUser.admin
         };
         
-        res.status(201).json(userWithoutPassword);
+        res.status(201).json({
+            message: 'Inscription réussie',
+            user: userWithoutPassword
+        });
     } catch (error) {
-        console.error('Erreur lors de la création de l\'utilisateur:', error);
-        res.status(500).json({ message: 'Erreur serveur', error: error.message });
+        console.error('Erreur lors de l\'inscription:', error);
+        res.status(500).json({ 
+            message: 'Erreur lors de l\'inscription', 
+            error: error.message 
+        });
     }
 });
 
