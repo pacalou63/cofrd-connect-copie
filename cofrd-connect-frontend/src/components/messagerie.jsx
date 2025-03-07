@@ -725,7 +725,7 @@ const Messagerie = ({ user, onLogout }) => {
                                                             key={msg.id} 
                                                             className={`message ${msg.from === user.id ? 'sent' : 'received'}`}
                                                         >
-                                                            <p>{msg.message}</p>
+                                                            <p>{msg.message || msg.text}</p>
                                                             <span className='timestamp'>{msg.timestamp}</span>
                                                         </div>
                                                     ))
