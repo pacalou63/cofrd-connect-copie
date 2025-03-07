@@ -86,6 +86,10 @@ app.use((req, res, next) => {
     next();
 });
 
+// Gérer les requêtes favicon.png pour éviter les erreurs 404/500
+app.get('/favicon.ico', (req, res) => res.status(204).end());
+app.get('/favicon.png', (req, res) => res.status(204).end());
+
 // Gestion explicite des requêtes OPTIONS pour toutes les routes
 app.options('*', (req, res) => {
     console.log('Requête OPTIONS reçue pour:', req.path);
