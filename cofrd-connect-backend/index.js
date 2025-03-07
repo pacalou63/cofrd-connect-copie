@@ -4,8 +4,8 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const connectDB = require('./config/database');
 const User = require('./models/user'); 
-const Message = require('./models/Message');
-const Activite = require('./models/Activite');
+const Message = require('./models/message');
+const Activite = require('./models/activite');
 
 // Créer l'application Express
 const app = express();
