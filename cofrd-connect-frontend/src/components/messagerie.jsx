@@ -636,7 +636,9 @@ const Messagerie = ({ user, onLogout }) => {
                                 </div>
                             </div>
 
-                            <div className='messagerie-content'>
+                            
+                        </div>
+                        <div className='messagerie-content'>
                                 <div className='contacts-list'>
                                     <div className='contacts-header'>
                                         <h2>Conversations</h2>
@@ -747,7 +749,6 @@ const Messagerie = ({ user, onLogout }) => {
                                         </div>
                                     )}
                                 </div>
-                            </div>
                         </div>
                     </div>
                 </div>
