@@ -12,6 +12,21 @@
       "dest": "/api/socket.js"
     },
     {
+      "src": "/api/login",
+      "methods": ["POST", "OPTIONS"],
+      "dest": "/api/index.js"
+    },
+    {
+      "src": "/api/users",
+      "methods": ["GET", "POST", "OPTIONS"],
+      "dest": "/api/index.js"
+    },
+    {
+      "src": "/api/users/(.*)",
+      "methods": ["GET", "PUT", "DELETE", "OPTIONS"],
+      "dest": "/api/index.js"
+    },
+    {
       "src": "/api/messages",
       "methods": ["POST"],
       "dest": "/api/messages.js"
