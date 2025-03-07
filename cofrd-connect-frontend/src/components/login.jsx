@@ -24,16 +24,22 @@ export const Login = ({ onLoginSuccess, onSignupClick }) => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email, password })
+                body: JSON.stringify({ email, password }),
+                mode: 'cors', // Explicitement définir le mode CORS
+                credentials: 'same-origin'
             });
 
-            const data = await response.json();
-
             if (!response.ok) {
-                throw new Error(data.message || 'Erreur lors de la connexion');
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `Erreur ${response.status}: ${response.statusText}`);
             }
 
-            onLoginSuccess(data.user);
+            const data = await response.json();
+            console.log('Réponse de login:', data);
+
+            // Vérifier si data.user existe, sinon utiliser data directement
+            const userData = data.user || data;
+            onLoginSuccess(userData);
         } catch (error) {
             console.error('Erreur de connexion:', error);
             setError(error.message || 'Email ou mot de passe incorrect');

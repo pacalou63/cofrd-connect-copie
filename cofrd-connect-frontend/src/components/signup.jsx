@@ -54,7 +54,9 @@ export const Signup = ({ onSignupSuccess, onBackToLogin }) => {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(userData)
+                body: JSON.stringify(userData),
+                mode: 'cors',
+                credentials: 'same-origin'
             });
 
             const data = await response.json();
