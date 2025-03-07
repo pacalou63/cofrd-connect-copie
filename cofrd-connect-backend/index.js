@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const connectDB = require('./database'); // Chemin d'importation corrigé
-const User = require('./models/User'); // Chemin d'importation corrigé
+const User = require('./models/user'); // Correction de la casse pour être compatible avec Linux
 const Message = require('./models/Message'); // Chemin d'importation corrigé
 const Activite = require('./models/Activite'); // Chemin d'importation corrigé
 const { initializeSocketIO } = require('./socket');
@@ -31,14 +31,73 @@ connectDB();
 //     activites: []
 // };
 
-// Middleware
-app.use(express.json());
-app.use(cors({
-    origin: "*", // Autoriser toutes les origines pour Express
+// Configuration CORS améliorée
+const corsOptions = {
+    origin: function(origin, callback) {
+        // Autoriser les requêtes sans origine (comme Postman)
+        if (!origin) {
+            return callback(null, true);
+        }
+        
+        // Autoriser les origines spécifiques
+        if (origin === "https://cofrd-connect-frontend.vercel.app" || 
+            origin === "http://localhost:3000" ||
+            origin.includes('postman') ||
+            origin.endsWith('vercel.app')) {
+            return callback(null, true);
+        }
+        
+        console.log('Origine bloquée par CORS:', origin);
+        return callback(null, false);
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    credentials: true
-}));
+    credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 204
+};
+
+// Middleware
+app.use(express.json());
+app.use(cors(corsOptions));
+
+// Middleware CORS supplémentaire pour plus de contrôle
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    
+    // Toujours définir Access-Control-Allow-Credentials à true
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    
+    // Si pas d'origine (comme Postman) ou origine autorisée
+    if (!origin || 
+        origin === "https://cofrd-connect-frontend.vercel.app" || 
+        origin === "http://localhost:3000" ||
+        origin.includes('postman') ||
+        origin.endsWith('vercel.app')) {
+        
+        // Pour les requêtes sans origine, utiliser * ou une origine spécifique
+        res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    }
+    
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    
+    if (req.method === 'OPTIONS') {
+        return res.status(204).end();
+    }
+    
+    next();
+});
+
+// Gestion explicite des requêtes OPTIONS pour toutes les routes
+app.options('*', (req, res) => {
+    console.log('Requête OPTIONS reçue pour:', req.path);
+    // Définir explicitement les headers CORS pour les requêtes OPTIONS
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.status(204).end();
+});
 
 // Route de test
 app.get('/', (req, res) => {
