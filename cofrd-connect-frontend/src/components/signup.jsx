@@ -47,10 +47,10 @@ export const Signup = ({ onSignupSuccess, onBackToLogin }) => {
                 ? `${process.env.REACT_APP_API_URL}/api/users` 
                 : 'http://localhost:3001/api/users';
             
-            // Astuce: ajouter un point à la fin du domaine pour contourner certains problèmes CORS
-            if (API_URL.includes('vercel.app') && !API_URL.includes('vercel.app.')) {
-                API_URL = API_URL.replace('vercel.app', 'vercel.app.');
-            }
+            // Ne pas utiliser l'astuce du point qui cause des problèmes
+            // if (API_URL.includes('vercel.app') && !API_URL.includes('vercel.app.')) {
+            //     API_URL = API_URL.replace('vercel.app', 'vercel.app.');
+            // }
             
             console.log('Signup API URL:', API_URL);
             

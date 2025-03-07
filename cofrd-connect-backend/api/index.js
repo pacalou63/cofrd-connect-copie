@@ -15,10 +15,12 @@ const corsOptions = {
         // Autoriser les requêtes sans origine (comme les appels API)
         if (!origin) return callback(null, true);
         
-        // Autoriser localhost et tous les domaines vercel.app
-        if (origin.includes('localhost') || origin.endsWith('vercel.app')) {
+        // Autoriser localhost et tous les domaines frontend sur vercel.app
+        if (origin.includes('localhost') || 
+            (origin.includes('frontend') && origin.includes('vercel.app'))) {
             return callback(null, true);
         } else {
+            console.log('Origine bloquée par CORS:', origin);
             return callback(null, false);
         }
     },
@@ -37,11 +39,12 @@ app.use(express.json());
 app.use((req, res, next) => {
     const origin = req.headers.origin;
     
-    // Autoriser localhost et tous les domaines vercel.app
-    if (origin && (origin.includes('localhost') || origin.endsWith('vercel.app'))) {
+    // Autoriser localhost et tous les domaines frontend sur vercel.app
+    if (origin && (origin.includes('localhost') || 
+                  (origin.includes('frontend') && origin.includes('vercel.app')))) {
         res.setHeader('Access-Control-Allow-Origin', origin);
     } else {
-        // Permettre toutes les origines en développement
+        // En développement, permettre toutes les origines
         res.setHeader('Access-Control-Allow-Origin', '*');
     }
     
