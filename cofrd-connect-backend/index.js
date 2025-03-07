@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
-const connectDB = require('./database');
+const connectDB = require('./config/database');
 const User = require('./models/user'); 
 const Message = require('./models/Message');
 const Activite = require('./models/Activite');
@@ -102,15 +102,28 @@ app.options('*', (req, res) => {
 
 // Route de test
 app.get('/', (req, res) => {
-    res.json({ 
-        message: 'Backend is running!',
-        mongodbStatus: mongoose.connection.readyState ? 'Connected' : 'Disconnected',
-        env: {
-            nodeEnv: process.env.NODE_ENV || 'Not set',
-            mongodbUriExists: !!process.env.MONGODB_URI,
-            mongodbUriPrefix: process.env.MONGODB_URI ? process.env.MONGODB_URI.substring(0, 20) + '...' : 'Not set'
-        }
-    });
+    try {
+        // Vérifier si mongoose est connecté avant d'accéder à la propriété connection
+        const mongoStatus = mongoose.connection && mongoose.connection.readyState 
+            ? 'Connected' 
+            : 'Disconnected';
+            
+        res.json({ 
+            message: 'Backend is running!',
+            mongodbStatus: mongoStatus,
+            env: {
+                nodeEnv: process.env.NODE_ENV || 'Not set',
+                mongodbUriExists: !!process.env.MONGODB_URI,
+                mongodbUriPrefix: process.env.MONGODB_URI ? process.env.MONGODB_URI.substring(0, 20) + '...' : 'Not set'
+            }
+        });
+    } catch (error) {
+        console.error('Erreur dans la route racine:', error);
+        res.status(500).json({ 
+            message: 'Erreur serveur',
+            error: process.env.NODE_ENV === 'production' ? 'Erreur interne' : error.message
+        });
+    }
 });
 
 // Route pour obtenir tous les utilisateurs
