@@ -12,31 +12,6 @@
       "dest": "/api/socket.js"
     },
     {
-      "src": "/api/login",
-      "methods": ["POST", "OPTIONS"],
-      "dest": "/api/index.js"
-    },
-    {
-      "src": "/api/users",
-      "methods": ["GET", "POST", "OPTIONS"],
-      "dest": "/api/index.js"
-    },
-    {
-      "src": "/api/users/(.*)",
-      "methods": ["GET", "PUT", "DELETE", "OPTIONS"],
-      "dest": "/api/index.js"
-    },
-    {
-      "src": "/api/messages",
-      "methods": ["POST"],
-      "dest": "/api/messages.js"
-    },
-    {
-      "src": "/api/messages/(.*)",
-      "methods": ["GET"],
-      "dest": "/api/messages.js"
-    },
-    {
       "src": "/api/(.*)",
       "dest": "/api/index.js"
     },
@@ -48,5 +23,16 @@
   "env": {
     "MONGODB_URI": "mongodb+srv://pascal:Pascaldzam12@pascal.n3e6s.mongodb.net/cofrd-connect?retryWrites=true&w=majority&appName=pascal",
     "VERCEL": "1"
-  }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Credentials", "value": "true" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,OPTIONS,PATCH,DELETE,POST,PUT" },
+        { "key": "Access-Control-Allow-Headers", "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization" }
+      ]
+    }
+  ]
 }

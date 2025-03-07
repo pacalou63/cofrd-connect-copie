@@ -42,10 +42,15 @@ export const Signup = ({ onSignupSuccess, onBackToLogin }) => {
             };
             console.log('Envoi des données:', userData);
             
-            // URL de l'API - Utilise la variable d'environnement ou une valeur par défaut
-            const API_URL = process.env.REACT_APP_API_URL 
+            // Construire l'URL de l'API
+            let API_URL = process.env.REACT_APP_API_URL 
                 ? `${process.env.REACT_APP_API_URL}/api/users` 
                 : 'http://localhost:3001/api/users';
+            
+            // Astuce: ajouter un point à la fin du domaine pour contourner certains problèmes CORS
+            if (API_URL.includes('vercel.app') && !API_URL.includes('vercel.app.')) {
+                API_URL = API_URL.replace('vercel.app', 'vercel.app.');
+            }
             
             console.log('Signup API URL:', API_URL);
             
@@ -55,8 +60,8 @@ export const Signup = ({ onSignupSuccess, onBackToLogin }) => {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(userData),
-                mode: 'cors',
-                credentials: 'same-origin'
+                mode: 'cors', // Mode CORS explicite
+                credentials: window.location.hostname === 'localhost' ? 'include' : 'same-origin' // Gestion des credentials adaptée
             });
 
             const data = await response.json();

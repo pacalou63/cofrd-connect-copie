@@ -11,7 +11,17 @@ const app = express();
 
 // Configuration CORS plus permissive pour Vercel
 const corsOptions = {
-    origin: ['https://cofrd-connect-frontend-kidfpklfk-pascals-projects-0029ecdd.vercel.app', 'https://cofrd-connect-frontend-lqe461k8t-pascals-projects-0029ecdd.vercel.app', 'http://localhost:3000'],
+    origin: function (origin, callback) {
+        // Autoriser les requêtes sans origine (comme les appels API)
+        if (!origin) return callback(null, true);
+        
+        // Autoriser localhost et tous les domaines vercel.app
+        if (origin.includes('localhost') || origin.endsWith('vercel.app')) {
+            return callback(null, true);
+        } else {
+            return callback(null, false);
+        }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true,
@@ -25,10 +35,10 @@ app.use(express.json());
 
 // Ajouter des en-têtes CORS manuellement pour plus de sécurité
 app.use((req, res, next) => {
-    const allowedOrigins = ['https://cofrd-connect-frontend-kidfpklfk-pascals-projects-0029ecdd.vercel.app', 'https://cofrd-connect-frontend-lqe461k8t-pascals-projects-0029ecdd.vercel.app', 'http://localhost:3000'];
     const origin = req.headers.origin;
     
-    if (allowedOrigins.includes(origin)) {
+    // Autoriser localhost et tous les domaines vercel.app
+    if (origin && (origin.includes('localhost') || origin.endsWith('vercel.app'))) {
         res.setHeader('Access-Control-Allow-Origin', origin);
     } else {
         // Permettre toutes les origines en développement

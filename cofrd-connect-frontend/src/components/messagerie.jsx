@@ -122,183 +122,147 @@ const Messagerie = ({ user, onLogout }) => {
     }, [user]);
 
     useEffect(() => {
-        if (!user || !user.id) {
-            console.log('Pas d\'utilisateur connecté');
-            return;
-        }
-
-        const socketUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-        const isVercelDeployment = socketUrl.includes('vercel.app');
-        
-        console.log('Socket.IO URL:', socketUrl);
-        console.log('Connecting socket for user:', user.id);
-        console.log('Est-ce un déploiement Vercel?', isVercelDeployment);
-        
-        // Approche hybride : Socket.IO en local, REST API sur Vercel
-        if (!isVercelDeployment) {
-            // Configuration Socket.IO pour environnement local
-            socketRef.current = io(socketUrl, {
-                query: { userId: user.id },
-                transports: ['polling', 'websocket'],
-                reconnectionAttempts: 5,
-                reconnectionDelay: 1000,
-                reconnectionDelayMax: 5000,
-                timeout: 20000,
-                forceNew: true,
-                autoConnect: true
-            });
-
-            // Ajouter des gestionnaires d'événements pour le débogage
-            socketRef.current.on('connect', () => {
-                console.log('Socket connecté avec succès, ID:', socketRef.current.id);
-                socketRef.current.emit('login', user.id);
-            });
-
-            socketRef.current.on('connect_error', (error) => {
-                console.error('Erreur de connexion socket:', error);
-            });
-
-            socketRef.current.on('reconnect_attempt', (attemptNumber) => {
-                console.log(`Tentative de reconnexion #${attemptNumber}`);
-            });
-
-            socketRef.current.on('reconnect_failed', () => {
-                console.error('Échec de la reconnexion après plusieurs tentatives');
-            });
-
-            // Gestionnaire de messages privés pour Socket.IO
-            socketRef.current.on('private message', handlePrivateMessage);
-        } else {
-            console.log('Utilisation du mode REST API pour Vercel');
+        if (user && user.id) {
+            // Détecter si nous sommes sur Vercel
+            const isVercelDeployment = window.location.hostname.endsWith('vercel.app');
             
-            // Configurer un intervalle pour vérifier les nouveaux messages en mode REST
-            const checkInterval = setInterval(async () => {
-                try {
-                    console.log('Vérification des nouveaux messages...');
-                    const messages = await loadMessages(user.id);
-                    
-                    if (Array.isArray(messages) && messages.length > 0) {
-                        // Traiter uniquement les nouveaux messages
-                        const processedIds = Array.from(processedMessageIds);
-                        
-                        messages.forEach(conv => {
-                            conv.messages.forEach(msg => {
-                                // Si le message n'a pas encore été traité
-                                if (!processedIds.includes(msg.id)) {
-                                    handlePrivateMessage({
-                                        from: msg.from,
-                                        message: msg.message,
-                                        id: msg.id
-                                    });
-                                }
-                            });
-                        });
-                    }
-                } catch (error) {
-                    console.error('Erreur lors de la vérification des nouveaux messages:', error);
-                }
-            }, 5000); // Vérifier toutes les 5 secondes
+            if (!isVercelDeployment) {
+                // Utiliser Socket.IO en local
+                const socketUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+                console.log('Connexion Socket.IO à:', socketUrl);
+                
+                socketRef.current = io(socketUrl, {
+                    query: { userId: user.id },
+                    transports: ['polling', 'websocket'],
+                    reconnectionAttempts: 5,
+                    timeout: 20000
+                });
+                
+                // Événements Socket.IO
+                socketRef.current.on('connect', () => {
+                    console.log('Connecté au serveur Socket.IO');
+                    socketRef.current.emit('login', user.id);
+                });
+                
+                socketRef.current.on('private message', (data) => {
+                    console.log('Message privé reçu:', data);
+                    handlePrivateMessage(data);
+                });
+                
+                socketRef.current.on('disconnect', () => {
+                    console.log('Déconnecté du serveur Socket.IO');
+                });
+                
+                socketRef.current.on('connect_error', (error) => {
+                    console.error('Erreur de connexion Socket.IO:', error);
+                });
+            } else {
+                // Sur Vercel, utiliser le polling pour récupérer les messages
+                console.log('Mode Vercel: utilisation du polling pour les messages');
+                // Charger les messages initiaux
+                loadInitialMessages();
+                
+                // Configurer un intervalle pour récupérer les nouveaux messages
+                const intervalId = setInterval(loadInitialMessages, 5000); // Toutes les 5 secondes
+                
+                return () => clearInterval(intervalId);
+            }
             
-            // Nettoyer l'intervalle lors du démontage du composant
-            return () => clearInterval(checkInterval);
+            // Charger les utilisateurs
+            fetchUsers();
         }
-
-        // Fonction de nettoyage
+        
         return () => {
             if (socketRef.current) {
                 socketRef.current.disconnect();
             }
         };
-    }, [user, users, setUnreadMessages, setTotalUnreadMessages, setConversations]);
+    }, [user]);
 
     useEffect(() => {
         const total = Object.values(unreadMessages).reduce((sum, count) => sum + count, 0);
         setTotalUnreadMessages(total);
     }, [unreadMessages, setTotalUnreadMessages]);
 
-    useEffect(() => {
-        const loadInitialMessages = async () => {
-            if (!user || !user.id) {
-                console.log('Pas d\'utilisateur connecté pour charger les messages');
-                return;
-            }
+    const loadInitialMessages = async () => {
+        if (!user || !user.id) {
+            console.log('Pas d\'utilisateur connecté pour charger les messages');
+            return;
+        }
 
-            try {
-                console.log('Chargement des messages pour l\'utilisateur:', user.id);
-                const messages = await loadMessages(user.id);
-                console.log('Messages chargés:', messages);
+        try {
+            console.log('Chargement des messages pour l\'utilisateur:', user.id);
+            const messages = await loadMessages(user.id);
+            console.log('Messages chargés:', messages);
+            
+            if (Array.isArray(messages)) {
+                // Vider l'ensemble des IDs de messages traités pour éviter les conflits
+                setProcessedMessageIds(new Set());
                 
-                if (Array.isArray(messages)) {
-                    // Vider l'ensemble des IDs de messages traités pour éviter les conflits
-                    setProcessedMessageIds(new Set());
+                // Chargement des utilisateurs pour enrichir les conversations
+                const allUsers = await fetchUsers();
+                console.log('Utilisateurs chargés pour enrichir les conversations:', allUsers.length);
+                
+                // Transformer les conversations pour inclure les informations utilisateur
+                const enrichedConversations = messages.map(conv => {
+                    // Déterminer l'autre utilisateur dans la conversation
+                    const otherUserId = conv.from === user.id ? conv.to : conv.from;
+                    console.log('Recherche de l\'utilisateur:', otherUserId);
                     
-                    // Chargement des utilisateurs pour enrichir les conversations
-                    const allUsers = await fetchUsers();
-                    console.log('Utilisateurs chargés pour enrichir les conversations:', allUsers.length);
+                    const otherUser = allUsers.find(u => u.id === otherUserId || u._id === otherUserId);
+                    console.log('Utilisateur trouvé:', otherUser ? otherUser.username : 'Non trouvé');
                     
-                    // Transformer les conversations pour inclure les informations utilisateur
-                    const enrichedConversations = messages.map(conv => {
-                        // Déterminer l'autre utilisateur dans la conversation
-                        const otherUserId = conv.from === user.id ? conv.to : conv.from;
-                        console.log('Recherche de l\'utilisateur:', otherUserId);
+                    // S'assurer que l'utilisateur a un ID normalisé
+                    const normalizedUser = otherUser ? {
+                        ...otherUser,
+                        id: otherUser.id || otherUser._id
+                    } : { id: otherUserId, username: 'Utilisateur inconnu' };
+                    
+                    // Formater les dates des messages et s'assurer que chaque message a un ID
+                    const messagesWithFormattedDates = conv.messages.map(msg => {
+                        let timestamp = msg.timestamp;
                         
-                        const otherUser = allUsers.find(u => u.id === otherUserId || u._id === otherUserId);
-                        console.log('Utilisateur trouvé:', otherUser ? otherUser.username : 'Non trouvé');
+                        // Si la date est au format ISO, la convertir
+                        if (timestamp && timestamp.includes('T')) {
+                            timestamp = formatDate(new Date(timestamp));
+                        }
                         
-                        // S'assurer que l'utilisateur a un ID normalisé
-                        const normalizedUser = otherUser ? {
-                            ...otherUser,
-                            id: otherUser.id || otherUser._id
-                        } : { id: otherUserId, username: 'Utilisateur inconnu' };
+                        // S'assurer que chaque message a un ID
+                        const messageId = msg.id || `msg_${msg.from}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
                         
-                        // Formater les dates des messages et s'assurer que chaque message a un ID
-                        const messagesWithFormattedDates = conv.messages.map(msg => {
-                            let timestamp = msg.timestamp;
-                            
-                            // Si la date est au format ISO, la convertir
-                            if (timestamp && timestamp.includes('T')) {
-                                timestamp = formatDate(new Date(timestamp));
-                            }
-                            
-                            // S'assurer que chaque message a un ID
-                            const messageId = msg.id || `msg_${msg.from}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-                            
-                            // Marquer ce message comme déjà traité pour éviter les doublons
-                            setProcessedMessageIds(prev => new Set([...prev, messageId]));
-                            
-                            return {
-                                ...msg,
-                                id: messageId,
-                                timestamp
-                            };
-                        });
-                        
-                        // Dédupliquer les messages par ID
-                        const uniqueMessages = messagesWithFormattedDates.filter(
-                            (msg, index, self) => {
-                                // Trouver le premier message avec cet ID
-                                const firstIndex = self.findIndex(m => m.id === msg.id);
-                                // Ne garder que la première occurrence
-                                return index === firstIndex;
-                            }
-                        );
+                        // Marquer ce message comme déjà traité pour éviter les doublons
+                        setProcessedMessageIds(prev => new Set([...prev, messageId]));
                         
                         return {
-                            ...conv,
-                            messages: uniqueMessages,
-                            user: normalizedUser
+                            ...msg,
+                            id: messageId,
+                            timestamp
                         };
                     });
                     
-                    setConversations(enrichedConversations);
-                }
-            } catch (error) {
-                console.error('Erreur lors du chargement des messages:', error);
+                    // Dédupliquer les messages par ID
+                    const uniqueMessages = messagesWithFormattedDates.filter(
+                        (msg, index, self) => {
+                            // Trouver le premier message avec cet ID
+                            const firstIndex = self.findIndex(m => m.id === msg.id);
+                            // Ne garder que la première occurrence
+                            return index === firstIndex;
+                        }
+                    );
+                    
+                    return {
+                        ...conv,
+                        messages: uniqueMessages,
+                        user: normalizedUser
+                    };
+                });
+                
+                setConversations(enrichedConversations);
             }
-        };
-
-        loadInitialMessages();
-    }, [user, setConversations]);
+        } catch (error) {
+            console.error('Erreur lors du chargement des messages:', error);
+        }
+    };
 
     const toggleUserInfo = () => {
         setShowUserInfo(!showUserInfo);

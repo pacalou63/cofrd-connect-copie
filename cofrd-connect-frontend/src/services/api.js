@@ -7,11 +7,16 @@ const mockUsersInitial = [
 ];
 
 // URL de l'API - Utilise la variable d'environnement ou une valeur par défaut
-const API_URL = process.env.REACT_APP_API_URL 
+let API_URL = process.env.REACT_APP_API_URL 
     ? `${process.env.REACT_APP_API_URL}/api` 
     : 'http://localhost:3001/api';
 
-console.log('API URL:', API_URL);
+// Astuce: ajouter un point à la fin du domaine pour contourner certains problèmes CORS
+if (API_URL.includes('vercel.app') && !API_URL.includes('vercel.app.')) {
+    API_URL = API_URL.replace('vercel.app', 'vercel.app.');
+}
+
+console.log('API URL avec astuce CORS:', API_URL);
 
 let activites = [...mockActivites];
 let users = [...mockUsersInitial];
